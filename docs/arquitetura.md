@@ -1,0 +1,1 @@
+.env para armazenar informacoes do banco de dados
