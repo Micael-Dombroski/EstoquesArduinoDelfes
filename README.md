@@ -5,13 +5,13 @@ Sistema web de controle de estoque com cadastro de produtos e fornecedores, pedi
 **Diferencial: reposição inteligente.** O sistema calcula o consumo médio de cada produto, cruza com o prazo de entrega do fornecedor e mostra **"o que comprar hoje"**, agrupado por fornecedor, com um botão que gera o pedido de entrada já preenchido. Ele avisa antes de faltar.
 
 > Trabalho da disciplina de **Laboratório de Programação** (UNIFACVEST, Ciência da Computação), Prof. Willen Leolatto Carneiro.
-> **Integrantes:** **[PREENCHER: nome 1]** e **[PREENCHER: nome 2]**
+> **Integrantes:** Micael e Kevin
 
 ## Tecnologias
 
 | Camada | Tecnologia |
 |---|---|
-| Frontend | **[PREENCHER: tecnologia do front]** |
+| Frontend | Next.js 15+ (App Router), TypeScript, Tailwind CSS, shadcn/ui, TanStack Query |
 | API | Node.js, Express 5, TypeScript (`tsx` e `nodemon` em desenvolvimento), zod |
 | Acesso a dados | Prisma ORM 7 (adapter `pg`) |
 | Banco | PostgreSQL 16 via Docker Compose |
@@ -117,7 +117,7 @@ A API sobe em `http://localhost:3000` (porta definida em `back/.env`) com `nodem
 ```bash
 cd ../web
 npm install
-npm run dev
+npm run dev -p 3001
 ```
 
 **[PREENCHER: confirmar os comandos e informar a URL do front, por exemplo `http://localhost:5173`]**

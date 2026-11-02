@@ -67,6 +67,18 @@ Um trecho gerado pela IA só entra no repositório se atender a **todos** os cri
 |---|---|---|---|
 | Registrar as decisões de banco de dados em `docs/arquitetura.md` e montar este arquivo conforme o modelo da disciplina. | "a criacao do schema e do banco se encaixa como feature? como coloco explico na arquitetura as decisões de bd?"<br><br>"me ajude a criar o arquivo DOCUMENTACAO_IA.md baseado na exigência do trabalho" | A IA sugeriu o formato *decisão → motivo → alternativa descartada → consequência* e um diagrama ER em Mermaid. Este documento foi gerado a partir do histórico real de conversas e revisado pelo grupo. **[PREENCHER: o que o grupo alterou ou corrigiu neste texto]** | Documentação em Markdown dentro do repositório, versionada junto com o código. Diagrama em Mermaid, que o GitHub renderiza sem ferramentas extras. |
 
+### 3.7 Estrutura e Arquitetura do Front-end (Next.js + App Router)
+
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
+|---|---|---|---|
+| Criar a interface priorizando velocidade e zero treinamento (Retirar material, Hoje/Comprar, Produtos). | "Crie a interface com node.js e Next.js App Router para o estoque com foco em agilidade de almoxarifado..." | **Conflito de Porta e CORS:** O Next dev roda na porta 3000 por padrão, conflitando com a API Express. Ajustado o script para `next dev -p 3001`. Adicionado `rewrites` no `next.config.ts` para redirecionar `/api/*` à API backend.<br>**Roteamento:** Removido `src/app/page.tsx` gerado automaticamente pelo template para evitar conflito de rota com `src/app/(app)/page.tsx`. | • Next.js como interface client-heavy sem duplicar lógica de backend.<br>• **TanStack Query** para cache e invalidação inteligente.<br>• **Proxy local (`rewrites`)** evitando problemas de CORS em desenvolvimento.<br>• Leitor USB de código de barras integrado ao campo de busca focado. |
+
+### 3.8 Tratamento de Erros e Integração de APIs
+
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
+|---|---|---|---|
+| Tratar respostas da API (`SALDO_INSUFICIENTE`, `EXCEDE_PEDIDO`) e estorno rápido via toast. | "Tratar os retornos da API em português e permitir Desfazer movimentação com Toast." | **Formatos de API:** Tipos isolados em `lib/types.ts`. Implementado `unwrapList` para tratar arrays puros ou envelopados (`{ data: [...] }`). Tratamento do erro 422 destacando itens sem saldo sem limpar o carrinho. | • `sonner` com botão "Desfazer" acionando `POST /pedidos-saida/:id/cancelar`.<br>• Centralização de mapeamento de códigos de erro em `lib/errors.ts`. |
+
 ---
 
 ## 4. Modelo para novas entradas

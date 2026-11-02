@@ -1,0 +1,97 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { mensagemDeErro } from "@/lib/errors";
+import { fmt } from "@/lib/format";
+import { useSugestoes } from "@/lib/hooks";
+import type { GrupoSugestao } from "@/lib/types";
+
+export function Sugestoes() {
+  const qc = useQueryClient();
+  const { data: grupos = [], isLoading, isError, error } = useSugestoes();
+  const [quantidades, setQuantidades] = useState<Record<number, string>>({});
+  const [excluidos, setExcluidos] = useState<Record<number, boolean>>({});
+
+  const gerar = useMutation({
+    mutationFn: (g: GrupoSugestao) =>
+      api("/reposicao/rascunhos", {
+        method: "POST",
+        body: JSON.stringify({
+          fornecedorId: g.fornecedorId,
+          itens: g.itens
+            .filter((i) => !excluidos[i.produtoId])
+            .map((i) => ({ produtoId: i.produtoId, quantidade: quantidades[i.produtoId] ?? i.qtdSugerida })),
+        }),
+      }),
+    onSuccess: (_, g) => {
+      qc.invalidateQueries();
+      toast.success(`Rascunho de pedido criado para ${g.fornecedorNome ?? "o fornecedor"}`);
+    },
+    onError: (e) => toast.error(mensagemDeErro(e)),
+  });
+
+  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-slate-200" />;
+  if (isError) return <p className="text-red-700">{mensagemDeErro(error)}</p>;
+  if (grupos.length === 0)
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600">
+        Nenhum produto abaixo do ponto. Tudo certo por aqui.
+      </p>
+    );
+
+  return (
+    <div className="space-y-6">
+      {grupos.map((g) => {
+        const selecionados = g.itens.filter((i) => !excluidos[i.produtoId]).length;
+        return (
+          <section key={g.fornecedorId ?? "sem"} className="rounded-lg border border-slate-200 bg-white">
+            <header className="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
+              <h2 className="font-semibold">{g.fornecedorNome ?? "Sem fornecedor cadastrado"}</h2>
+              <button
+                type="button"
+                disabled={g.fornecedorId == null || selecionados === 0 || gerar.isPending}
+                onClick={() => gerar.mutate(g)}
+                className="h-11 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Gerar pedido ({selecionados})
+              </button>
+            </header>
+            <ul className="divide-y divide-slate-200">
+              {g.itens.map((i) => (
+                <li key={i.produtoId} className="flex items-center gap-3 p-4">
+                  <input
+                    type="checkbox"
+                    aria-label={`Incluir ${i.nome}`}
+                    checked={!excluidos[i.produtoId]}
+                    onChange={(e) => setExcluidos((x) => ({ ...x, [i.produtoId]: !e.target.checked }))}
+                    className="size-5"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{i.nome}</p>
+                    <p className="text-sm text-slate-600">
+                      Estoque {fmt(i.saldoAtual)} {i.unidade}
+                      {i.diasRestantes != null && ` · acaba em ${fmt(i.diasRestantes)} dias`}
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <span className="sr-only">Quantidade a comprar de {i.nome}</span>
+                    <input
+                      inputMode="decimal"
+                      value={quantidades[i.produtoId] ?? i.qtdSugerida}
+                      onChange={(e) => setQuantidades((q) => ({ ...q, [i.produtoId]: e.target.value }))}
+                      className="h-11 w-24 rounded-lg border border-slate-300 px-3 text-right tabular-nums"
+                    />
+                    {i.unidade}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}

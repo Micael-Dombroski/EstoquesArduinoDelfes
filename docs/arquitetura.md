@@ -20,7 +20,7 @@ Sistema de controle de estoque de **um único local**, com cadastro de produtos 
 
 | Camada | Tecnologia |
 |---|---|
-| Frontend | `[PREENCHER: tecnologia do front]` (pasta `web/`) |
+| Frontend | Next.js 15+ (App Router), TypeScript, Tailwind CSS, shadcn/ui, TanStack Query (pasta `web/`) |
 | API | Node.js 22–24, Express 5, TypeScript (executado com `tsx`; `nodemon` em desenvolvimento) |
 | Validação | zod |
 | Acesso a dados | Prisma ORM 7 (adapter `pg`) |
@@ -285,4 +285,4 @@ stateDiagram-v2
 | **Marca como texto** | Sem cadastro padronizado de marcas | Entidade `Marca` |
 | **Valor mínimo do fornecedor** | Guardado, mas ainda não usado na sugestão de compra | Avisar quando o rascunho ficar abaixo do mínimo |
 | **Importação CSV** | Não implementada | Importar produtos exportados do sistema atual |
-| **Seed e frontend** | `[PREENCHER: status]` | Seed com ~30 dias de saídas para a demonstração |
+| Seed e frontend | Base do front implementada (Retirar material, Hoje/Comprar, Produtos) com TanStack Query e proxy via `next.config.ts`. |
