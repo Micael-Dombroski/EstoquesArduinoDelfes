@@ -1,5 +1,35 @@
+# --- Dependências ---
+node_modules/
+**/node_modules/
+back/node_modules/
+web/node_modules/
+
+# --- Next.js (Front-end) ---
+.next/
+web/.next/
+out/
+web/out/
+web/.env*.local
+
+# --- Arquivos de Ambiente (.env) ---
+.env
+back/.env
+web/.env
+*.env
+
+# --- IDEs, Editores e Agentes de IA ---
+.vscode/
+.idea/
 **/.agents/
 **/.claude/
 **/.windsurf/
-**/node_modules/
-**/.env
+
+# --- Logs e Arquivos Temporários ---
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# --- Arquivos do Sistema Operacional ---
+.DS_Store
+Thumbs.db
