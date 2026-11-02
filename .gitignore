@@ -1,5 +1,5 @@
+**/.agents/
+**/.claude/
+**/.windsurf/
 **/node_modules/
-.env
-**/.agents
-**/.claude
-**/.windsurf
+**/.env
