@@ -1,0 +1,249 @@
+// =============================================================================
+// Sistema de Controle de Estoque - schema.prisma
+//
+// Decisões principais:
+//  - Movimentacao é a fonte da verdade; Produto.saldoAtual é um cache mantido
+//    por TRIGGER no banco (ver prisma/sql/extras.sql). A aplicação NUNCA deve
+//    atualizar saldoAtual nem saldoApos diretamente.
+//  - Quantidades: Decimal(12,3) (aceita kg, m, L). Valores: Decimal(12,2).
+//  - Tabelas/colunas em snake_case no banco (@@map/@map) para facilitar SQL cru.
+//  - Datas com Timestamptz (sem dor de cabeça com fuso horário).
+//  - Relações com onDelete: Restrict onde há histórico a proteger.
+//
+// Prisma 7: troque o provider do generator para "prisma-client" (com output)
+// e mova a url do datasource para o prisma.config.ts.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum StatusPedidoEntrada {
+  RASCUNHO
+  ENVIADO
+  RECEBIDO_PARCIAL
+  RECEBIDO
+  CANCELADO
+
+  @@map("status_pedido_entrada")
+}
+
+enum StatusPedidoSaida {
+  CONCLUIDO
+  CANCELADO
+
+  @@map("status_pedido_saida")
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  ESTORNO
+
+  @@map("tipo_movimentacao")
+}
+
+// ----------------------------------------------------------------------------
+// Cadastros
+// ----------------------------------------------------------------------------
+
+model Produto {
+  id             Int      @id @default(autoincrement())
+  codigo         String   @unique @db.VarChar(40)
+  nome           String   @db.VarChar(150)
+  descricao      String?
+  unidade        String   @db.VarChar(10) // un, kg, cx, m...
+  marca          String?  @db.VarChar(80)
+
+  /// Cache do saldo. Mantido por trigger a partir de Movimentacao. Não escrever pela aplicação.
+  saldoAtual     Decimal  @default(0) @map("saldo_atual") @db.Decimal(12, 3)
+  /// Ponto de reposição manual (a view vw_sugestao_reposicao calcula um sugerido).
+  pontoReposicao Decimal  @default(0) @map("ponto_reposicao") @db.Decimal(12, 3)
+  /// Margem de segurança (em dias de consumo) usada na sugestão de reposição.
+  diasSeguranca  Int      @default(3) @map("dias_seguranca")
+
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  fornecedores   ProdutoFornecedor[]
+  itensEntrada   ItemPedidoEntrada[]
+  itensSaida     ItemPedidoSaida[]
+  movimentacoes  Movimentacao[]
+
+  @@index([ativo, nome])
+  @@map("produtos")
+}
+
+model Fornecedor {
+  id                 Int      @id @default(autoincrement())
+  nome               String   @db.VarChar(150)
+  cnpj               String?  @unique @db.VarChar(18)
+  contato            String?  @db.VarChar(100)
+  email              String?  @db.VarChar(150)
+  telefone           String?  @db.VarChar(30)
+  /// Valor mínimo de compra exigido pelo fornecedor ("$ mín" do desenho).
+  valorMinimoPedido  Decimal? @map("valor_minimo_pedido") @db.Decimal(12, 2)
+  ativo              Boolean  @default(true)
+  criadoEm           DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  produtos           ProdutoFornecedor[]
+  pedidosEntrada     PedidoEntrada[]
+
+  @@index([ativo, nome])
+  @@map("fornecedores")
+}
+
+/// Relação N:N Produto x Fornecedor. O prazo de entrega pertence a ESTA relação.
+model ProdutoFornecedor {
+  produtoId         Int      @map("produto_id")
+  fornecedorId      Int      @map("fornecedor_id")
+  prazoEntregaDias  Int      @map("prazo_entrega_dias")
+  precoUnitario     Decimal? @map("preco_unitario") @db.Decimal(12, 2)
+  /// No máximo um preferencial por produto (índice único parcial no extras.sql).
+  preferencial      Boolean  @default(false)
+
+  produto           Produto    @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  fornecedor        Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+
+  @@id([produtoId, fornecedorId])
+  @@index([fornecedorId])
+  @@map("produtos_fornecedores")
+}
+
+model Requisitante {
+  id             Int      @id @default(autoincrement())
+  nome           String   @db.VarChar(120)
+  setor          String?  @db.VarChar(80)
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  pedidosSaida   PedidoSaida[]
+
+  @@index([ativo, nome])
+  @@map("requisitantes")
+}
+
+// ----------------------------------------------------------------------------
+// Pedidos de entrada (compra / recebimento)
+// ----------------------------------------------------------------------------
+
+model PedidoEntrada {
+  id               Int                 @id @default(autoincrement())
+  fornecedorId     Int                 @map("fornecedor_id")
+  status           StatusPedidoEntrada @default(RASCUNHO)
+  dataPedido       DateTime            @default(now()) @map("data_pedido") @db.Timestamptz(6)
+  previsaoEntrega  DateTime?           @map("previsao_entrega") @db.Date
+  dataRecebimento  DateTime?           @map("data_recebimento") @db.Timestamptz(6)
+  observacao       String?
+  criadoEm         DateTime            @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime            @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  fornecedor       Fornecedor          @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  itens            ItemPedidoEntrada[]
+
+  @@index([status, dataPedido(sort: Desc)])
+  @@index([fornecedorId, dataPedido(sort: Desc)])
+  @@map("pedidos_entrada")
+}
+
+model ItemPedidoEntrada {
+  id                  Int      @id @default(autoincrement())
+  pedidoId            Int      @map("pedido_id")
+  produtoId           Int      @map("produto_id")
+  quantidade          Decimal  @db.Decimal(12, 3)
+  quantidadeRecebida  Decimal  @default(0) @map("quantidade_recebida") @db.Decimal(12, 3)
+  /// Marca efetivamente comprada (pode diferir da marca padrão do produto).
+  marca               String?  @db.VarChar(80)
+  precoUnitario       Decimal? @map("preco_unitario") @db.Decimal(12, 2)
+
+  pedido              PedidoEntrada @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto             Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  movimentacoes       Movimentacao[]
+
+  @@unique([pedidoId, produtoId])
+  @@index([produtoId])
+  @@map("itens_pedido_entrada")
+}
+
+// ----------------------------------------------------------------------------
+// Pedidos de saída (retirada por requisitante)
+// ----------------------------------------------------------------------------
+
+model PedidoSaida {
+  id              Int               @id @default(autoincrement())
+  requisitanteId  Int               @map("requisitante_id")
+  status          StatusPedidoSaida @default(CONCLUIDO)
+  dataPedido      DateTime          @default(now()) @map("data_pedido") @db.Timestamptz(6)
+  observacao      String?
+  criadoEm        DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  requisitante    Requisitante      @relation(fields: [requisitanteId], references: [id], onDelete: Restrict)
+  itens           ItemPedidoSaida[]
+
+  @@index([requisitanteId, dataPedido(sort: Desc)])
+  @@index([dataPedido(sort: Desc)])
+  @@map("pedidos_saida")
+}
+
+model ItemPedidoSaida {
+  id           Int     @id @default(autoincrement())
+  pedidoId     Int     @map("pedido_id")
+  produtoId    Int     @map("produto_id")
+  quantidade   Decimal @db.Decimal(12, 3)
+
+  pedido       PedidoSaida   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto      Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  movimentacao Movimentacao?
+
+  @@unique([pedidoId, produtoId])
+  @@index([produtoId])
+  @@map("itens_pedido_saida")
+}
+
+// ----------------------------------------------------------------------------
+// Movimentação: livro-razão do estoque (append-only)
+// ----------------------------------------------------------------------------
+
+/// Cada linha altera o saldo. `variacao` é assinada: ENTRADA > 0, SAIDA < 0.
+/// Erros são corrigidos com um novo registro ESTORNO (estornoDeId), nunca com UPDATE/DELETE
+/// (bloqueado por trigger).
+model Movimentacao {
+  id              Int              @id @default(autoincrement())
+  produtoId       Int              @map("produto_id")
+  tipo            TipoMovimentacao
+  variacao        Decimal          @db.Decimal(12, 3)
+  /// Preenchido pelo trigger com o saldo resultante. O valor enviado pela aplicação é ignorado.
+  saldoApos       Decimal          @default(0) @map("saldo_apos") @db.Decimal(12, 3)
+  dataMovimento   DateTime         @default(now()) @map("data_movimento") @db.Timestamptz(6)
+  observacao      String?
+
+  itemEntradaId   Int?             @map("item_entrada_id")
+  itemSaidaId     Int?             @unique @map("item_saida_id")
+  /// Se esta movimentação desfaz outra, aponta para a original (uma única vez).
+  estornoDeId     Int?             @unique @map("estorno_de_id")
+
+  produto         Produto            @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  itemEntrada     ItemPedidoEntrada? @relation(fields: [itemEntradaId], references: [id], onDelete: Restrict)
+  itemSaida       ItemPedidoSaida?   @relation(fields: [itemSaidaId], references: [id], onDelete: Restrict)
+  estornoDe       Movimentacao?      @relation("Estorno", fields: [estornoDeId], references: [id], onDelete: Restrict)
+  estorno         Movimentacao?      @relation("Estorno")
+
+  // Histórico de um produto ordenado por data
+  @@index([produtoId, dataMovimento(sort: Desc)])
+  // Consumo médio, última entrada, última saída (filtra por tipo + data)
+  @@index([produtoId, tipo, dataMovimento(sort: Desc)])
+  @@index([itemEntradaId])
+  @@map("movimentacoes")
+}
