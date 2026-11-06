@@ -142,22 +142,22 @@ export function SaidaForm() {
             }
           }}
           placeholder="Digite ou passe o leitor. Enter adiciona."
-          className="h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-base focus-visible:outline-2 focus-visible:outline-blue-700"
+          className="h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-base focus-visible:outline-2 focus-visible:outline-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus-visible:outline-blue-400"
         />
         {resultados.length > 0 && (
-          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
             {resultados.map((p) => (
               <li key={p.id}>
                 <button
                   type="button"
                   onClick={() => adicionar(p)}
-                  className="flex min-h-11 w-full items-center justify-between px-4 py-2 text-left hover:bg-slate-100"
+                  className="flex min-h-11 w-full items-center justify-between px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <span>
                     <span className="font-medium">{p.nome}</span>
-                    <span className="ml-2 text-sm text-slate-500">{p.codigo}</span>
+                    <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">{p.codigo}</span>
                   </span>
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">
                     {fmt(p.saldoAtual)} {p.unidade}
                   </span>
                 </button>
@@ -166,28 +166,30 @@ export function SaidaForm() {
           </ul>
         )}
         {termo && resultados.length === 0 && (
-          <p className="mt-2 text-sm text-slate-600">Nenhum produto encontrado para “{termo}”.</p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Nenhum produto encontrado para “{termo}”.</p>
         )}
       </div>
 
       <section aria-label="Itens da retirada">
         {itens === 0 ? (
-          <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600">
+          <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600 dark:border-slate-700 dark:text-slate-400">
             Nenhum item ainda. Busque um produto para começar a retirada.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
             {Object.entries(carrinho).map(([id, qtd]) => {
               const p = porId.get(Number(id));
               const faltou = faltantes[Number(id)];
               return (
                 <li
                   key={id}
-                  className={`flex items-center justify-between gap-3 p-4 ${faltou !== undefined ? "bg-red-50" : ""}`}
+                  className={`flex items-center justify-between gap-3 p-4 ${faltou !== undefined ? "bg-red-50 dark:bg-red-950/40" : ""}`}
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium">{p?.nome ?? `Produto ${id}`}</p>
-                    <p className={`text-sm ${faltou !== undefined ? "font-medium text-red-700" : "text-slate-600"}`}>
+                    <p
+                      className={`text-sm ${faltou !== undefined ? "font-medium text-red-700 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}
+                    >
                       {faltou !== undefined
                         ? `Saldo insuficiente: restam ${fmt(faltou)} ${p?.unidade ?? ""}`
                         : `Em estoque: ${p ? fmt(p.saldoAtual) : "-"} ${p?.unidade ?? ""}`}
@@ -198,7 +200,7 @@ export function SaidaForm() {
                       type="button"
                       aria-label={`Diminuir ${p?.nome ?? "item"}`}
                       onClick={() => alterar(Number(id), -1)}
-                      className="size-11 rounded-lg border border-slate-300 text-xl hover:bg-slate-100"
+                      className="size-11 rounded-lg border border-slate-300 text-xl hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                     >
                       −
                     </button>
@@ -207,7 +209,7 @@ export function SaidaForm() {
                       type="button"
                       aria-label={`Aumentar ${p?.nome ?? "item"}`}
                       onClick={() => alterar(Number(id), 1)}
-                      className="size-11 rounded-lg border border-slate-300 text-xl hover:bg-slate-100"
+                      className="size-11 rounded-lg border border-slate-300 text-xl hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                     >
                       +
                     </button>
@@ -233,7 +235,7 @@ export function SaidaForm() {
                 localStorage.setItem(CHAVE_REQUISITANTE, e.target.value);
               } catch {}
             }}
-            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-blue-700"
+            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus-visible:outline-blue-400"
           >
             <option value="">Selecione</option>
             {requisitantes
@@ -250,12 +252,14 @@ export function SaidaForm() {
           type="button"
           disabled={!podeConfirmar}
           onClick={() => enviar.mutate()}
-          className="h-12 rounded-lg bg-blue-700 px-6 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="h-12 rounded-lg bg-blue-700 px-6 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-blue-600 dark:hover:bg-blue-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
         >
           {enviar.isPending ? "Registrando..." : "Registrar retirada"}
         </button>
       </div>
-      <p className="text-sm text-slate-500">Atalhos: / busca, Enter adiciona, Ctrl+Enter registra, Esc limpa.</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        Atalhos: / busca, Enter adiciona, Ctrl+Enter registra, Esc limpa.
+      </p>
     </div>
   );
 }

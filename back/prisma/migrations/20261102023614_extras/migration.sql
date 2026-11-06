@@ -1,6 +1,3 @@
-<<<<<<< HEAD
--- This is an empty migration.
-=======
 -- =============================================================================
 -- extras.sql: recursos do PostgreSQL que o Prisma não modela no schema.prisma.
 --
@@ -224,4 +221,3 @@ LEFT JOIN fornecedores fo ON fo.id = c.fornecedor_id;
 --   SELECT * FROM vw_sugestao_reposicao
 --    WHERE precisa_repor
 --    ORDER BY fornecedor_nome, dias_restantes NULLS LAST;
->>>>>>> dust

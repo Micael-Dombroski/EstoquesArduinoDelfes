@@ -33,11 +33,11 @@ export function Sugestoes() {
     onError: (e) => toast.error(mensagemDeErro(e)),
   });
 
-  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-slate-200" />;
-  if (isError) return <p className="text-red-700">{mensagemDeErro(error)}</p>;
+  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />;
+  if (isError) return <p className="text-red-700 dark:text-red-400">{mensagemDeErro(error)}</p>;
   if (grupos.length === 0)
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600">
+      <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600 dark:border-slate-700 dark:text-slate-400">
         Nenhum produto abaixo do ponto. Tudo certo por aqui.
       </p>
     );
@@ -47,19 +47,22 @@ export function Sugestoes() {
       {grupos.map((g) => {
         const selecionados = g.itens.filter((i) => !excluidos[i.produtoId]).length;
         return (
-          <section key={g.fornecedorId ?? "sem"} className="rounded-lg border border-slate-200 bg-white">
-            <header className="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
+          <section
+            key={g.fornecedorId ?? "sem"}
+            className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+          >
+            <header className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-800">
               <h2 className="font-semibold">{g.fornecedorNome ?? "Sem fornecedor cadastrado"}</h2>
               <button
                 type="button"
                 disabled={g.fornecedorId == null || selecionados === 0 || gerar.isPending}
                 onClick={() => gerar.mutate(g)}
-                className="h-11 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="h-11 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-blue-600 dark:hover:bg-blue-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               >
                 Gerar pedido ({selecionados})
               </button>
             </header>
-            <ul className="divide-y divide-slate-200">
+            <ul className="divide-y divide-slate-200 dark:divide-slate-800">
               {g.itens.map((i) => (
                 <li key={i.produtoId} className="flex items-center gap-3 p-4">
                   <input
@@ -67,11 +70,11 @@ export function Sugestoes() {
                     aria-label={`Incluir ${i.nome}`}
                     checked={!excluidos[i.produtoId]}
                     onChange={(e) => setExcluidos((x) => ({ ...x, [i.produtoId]: !e.target.checked }))}
-                    className="size-5"
+                    className="size-5 accent-blue-700 dark:accent-blue-500"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{i.nome}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       Estoque {fmt(i.saldoAtual)} {i.unidade}
                       {i.diasRestantes != null && ` · acaba em ${fmt(i.diasRestantes)} dias`}
                     </p>
@@ -82,7 +85,7 @@ export function Sugestoes() {
                       inputMode="decimal"
                       value={quantidades[i.produtoId] ?? i.qtdSugerida}
                       onChange={(e) => setQuantidades((q) => ({ ...q, [i.produtoId]: e.target.value }))}
-                      className="h-11 w-24 rounded-lg border border-slate-300 px-3 text-right tabular-nums"
+                      className="h-11 w-24 rounded-lg border border-slate-300 bg-white px-3 text-right tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     {i.unidade}
                   </label>
