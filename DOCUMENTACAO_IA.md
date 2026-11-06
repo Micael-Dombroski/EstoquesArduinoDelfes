@@ -196,3 +196,11 @@ Um trecho de código só foi aceito quando:
 - [ ] Prints do Kanban em `docs/kanban-prints/` `[PREENCHER]`.
 - [ ] Sem autenticação no MVP (a análise cita "usuário" na movimentação, que não existe no schema atual).
 - [ ] Sem testes automatizados; a validação atual é manual.
+
+
+## 7. Criacao de historico de saidas
+-Prompt principal: Você é um expert em desenvolvimento front end com muita experiência em UX, baseado no diretório web que você gerou, quero que, além da tela que permita eu retirar os materiais, quero que seja exibido também um histórico com filtros: período, produto e funcionário.
+
+Por padrão ele vai exibir 20 itens por página, mas é possível aumentar para 50 ou 100, o período filtrado não pode possuir intervalo maior que um ano, qualquer erro no filtro deve ser avisado por meio de um pop-up vermelho, seja por ser inválido ou se houver algum erro ao carregar os dados, deve ter um botão para atualizar a lista.
+
+-Foi feito alguns refinamentos, como exibir os itens, suas quantidades e permitir desfazer o pedido de saida.
