@@ -13,6 +13,7 @@ import { pedidosSaidaRouter } from './modules/pedidos-saida/pedidos-saida.routes
 import { movimentacoesRouter } from './modules/movimentacoes/movimentacoes.routes';
 import { estoqueRouter } from './modules/estoque/estoque.routes';
 import { reposicaoRouter } from './modules/reposicao/reposicao.routes';
+import { acompanhamentoRouter } from './modules/acompanhamento/acompanhamento.routes';
 
 export const app = express();
 
@@ -34,6 +35,7 @@ api.use('/pedidos-saida', pedidosSaidaRouter);
 api.use('/movimentacoes', movimentacoesRouter);
 api.use('/estoque', estoqueRouter);
 api.use('/reposicao', reposicaoRouter);
+api.use('/acompanhamento', acompanhamentoRouter);
 
 app.use('/api/v1', api);
 

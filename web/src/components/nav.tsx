@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/saida", rotulo: "Retirar material", destaque: true },
   { href: "/", rotulo: "Hoje" },
   { href: "/produtos", rotulo: "Produtos" },
+  { href: "/pedidos", rotulo: "Pedidos" },
 ];
 
 function IconeSol() {
