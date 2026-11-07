@@ -36,3 +36,23 @@ export type GrupoSugestao = {
 
 // details do erro 422 SALDO_INSUFICIENTE
 export type Faltante = { produtoId: number; saldoAtual: string };
+
+// ----- Histórico de retiradas (GET /pedidos-saida) -----
+export type ItemRetirada = {
+  id: number;
+  produtoId: number;
+  quantidade: string;
+  produto?: { nome: string; unidade: string } | null;
+};
+
+export type Retirada = {
+  id: number;
+  requisitanteId: number;
+  requisitante?: { nome: string } | null;
+  status: "CONCLUIDO" | "CANCELADO";
+  dataPedido: string; // ISO 8601
+  observacao?: string | null;
+  itens?: ItemRetirada[]; // pode não vir na listagem; nesse caso o front busca o detalhe
+};
+
+export type Pagina<T> = { itens: T[]; total: number };

@@ -17,3 +17,13 @@ export function semaforo(saldo: string, ponto: string): Semaforo {
   if (s <= p * 1.5) return "atencao";
   return "ok";
 }
+
+// "2026-11-05" no horário local (não usa toISOString, que converte para UTC).
+export function dataLocal(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function fmtDataHora(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}

@@ -11,7 +11,6 @@ export const sugestoes: RequestHandler = async (_req, res) => {
 export const gerarRascunho: RequestHandler = async (_req, res) => {
   const { body } = valid<{ body: RascunhoBody }>(res);
   res.status(201).json(await service.gerarRascunho(body));
-
 };
 
 

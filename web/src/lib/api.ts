@@ -33,3 +33,20 @@ export function unwrapList<T>(body: unknown): T[] {
   const b = body as { data?: T[]; items?: T[] } | null;
   return b?.data ?? b?.items ?? [];
 }
+
+// Aceita { data, meta: { total } }, { items, total } ou lista pura.
+export function unwrapPage<T>(body: unknown): { itens: T[]; total: number } {
+  const b = body as
+    | { data?: T[]; items?: T[]; total?: number; meta?: { total?: number }; pagination?: { total?: number } }
+    | T[]
+    | null;
+  const itens = Array.isArray(b) ? b : (b?.data ?? b?.items ?? []);
+  const total = Array.isArray(b) ? itens.length : Number(b?.meta?.total ?? b?.pagination?.total ?? b?.total ?? itens.length);
+  return { itens, total };
+}
+
+// Aceita { data: {...} } ou o próprio objeto.
+export function unwrapOne<T>(body: unknown): T {
+  const b = body as { data?: T } | null;
+  return (b?.data ?? b) as T;
+}
