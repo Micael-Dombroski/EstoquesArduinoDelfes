@@ -33,7 +33,8 @@ enum StatusPedidoEntrada {
   RECEBIDO_PARCIAL
   RECEBIDO
   CANCELADO
-
+  APROVADO   // novo
+  RECUSADO   // novo
   @@map("status_pedido_entrada")
 }
 
@@ -130,6 +131,7 @@ model Requisitante {
   criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
 
   pedidosSaida   PedidoSaida[]
+  pedidosEntrada PedidoEntrada[]
 
   @@index([ativo, nome])
   @@map("requisitantes")
@@ -156,6 +158,13 @@ model PedidoEntrada {
   @@index([status, dataPedido(sort: Desc)])
   @@index([fornecedorId, dataPedido(sort: Desc)])
   @@map("pedidos_entrada")
+
+  solicitanteId Int?          @map("solicitante_id")
+  solicitante   Requisitante? @relation(fields: [solicitanteId], references: [id], onDelete: Restrict)
+
+  @@index([solicitanteId, dataPedido(sort: Desc)])
+  @@index([previsaoEntrega])
+  @@index([dataRecebimento])
 }
 
 model ItemPedidoEntrada {
