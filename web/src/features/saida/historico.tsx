@@ -39,7 +39,7 @@ function validar(f: FiltrosHistorico): string | null {
 }
 
 const campo =
-  "h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-blue-700";
+  "h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus-visible:outline-blue-400";
 
 export function Historico() {
   const qc = useQueryClient();
@@ -140,13 +140,16 @@ export function Historico() {
           type="button"
           onClick={() => refetch()}
           disabled={!aplicados || isFetching}
-          className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
         >
           {isFetching ? "Atualizando..." : "Atualizar lista"}
         </button>
       </div>
 
-      <form onSubmit={filtrar} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2">
+      <form
+        onSubmit={filtrar}
+        className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2"
+      >
         <div>
           <label htmlFor="h-de" className="mb-1 block text-sm font-medium">
             De
@@ -214,14 +217,14 @@ export function Historico() {
         <div className="flex gap-2 sm:col-span-2">
           <button
             type="submit"
-            className="h-11 rounded-lg bg-blue-700 px-5 text-sm font-medium text-white hover:bg-blue-800"
+            className="h-11 rounded-lg bg-blue-700 px-5 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
           >
             Filtrar
           </button>
           <button
             type="button"
             onClick={limpar}
-            className="h-11 rounded-lg border border-slate-300 bg-white px-5 text-sm font-medium hover:bg-slate-100"
+            className="h-11 rounded-lg border border-slate-300 bg-white px-5 text-sm font-medium hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           >
             Limpar filtros
           </button>
@@ -229,18 +232,18 @@ export function Historico() {
       </form>
 
       {isLoading || !aplicados ? (
-        <div className="h-40 animate-pulse rounded-lg bg-slate-200" />
+        <div className="h-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
       ) : isError ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
           Não foi possível carregar o histórico. Use “Atualizar lista” para tentar de novo.
         </p>
       ) : retiradas.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600">
+        <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-600 dark:border-slate-700 dark:text-slate-400">
           Nenhuma retirada encontrada neste período. Ajuste os filtros para ampliar a busca.
         </p>
       ) : (
         <ul
-          className={`divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white ${isFetching ? "opacity-60" : ""}`}
+          className={`divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900 ${isFetching ? "opacity-60" : ""}`}
         >
           {retiradas.map((r) => {
             const desfeita = r.status === "CANCELADO";
@@ -255,11 +258,13 @@ export function Historico() {
                   <p className="font-medium">
                     {r.requisitante?.nome ?? nomePorId.get(r.requisitanteId) ?? `Funcionário ${r.requisitanteId}`}
                   </p>
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                     <time dateTime={r.dataPedido}>{fmtDataHora(r.dataPedido)}</time>
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                        desfeita ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-800"
+                        desfeita
+                          ? "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                       }`}
                     >
                       {desfeita ? "Desfeita" : "Concluída"}
@@ -269,7 +274,11 @@ export function Historico() {
 
                 {/* O que foi retirado e quanto */}
                 {itens ? (
-                  <ul className={`space-y-1 text-sm ${desfeita ? "text-slate-500 line-through" : "text-slate-700"}`}>
+                  <ul
+                    className={`space-y-1 text-sm ${
+                      desfeita ? "text-slate-500 line-through dark:text-slate-500" : "text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
                     {itens.map((i) => {
                       const p = produtoPorId.get(i.produtoId);
                       const nome = i.produto?.nome ?? p?.nome ?? `Produto ${i.produtoId}`;
@@ -277,7 +286,9 @@ export function Historico() {
                       return (
                         <li
                           key={i.id}
-                          className={`flex justify-between gap-4 ${i.produtoId === filtroProduto ? "font-semibold text-slate-900" : ""}`}
+                          className={`flex justify-between gap-4 ${
+                            i.produtoId === filtroProduto ? "font-semibold text-slate-900 dark:text-slate-100" : ""
+                          }`}
                         >
                           <span>{nome}</span>
                           <span className="whitespace-nowrap tabular-nums">
@@ -288,21 +299,25 @@ export function Historico() {
                     })}
                   </ul>
                 ) : det?.erro ? (
-                  <p className="text-sm text-red-700">Não foi possível carregar os itens desta retirada.</p>
+                  <p className="text-sm text-red-700 dark:text-red-400">
+                    Não foi possível carregar os itens desta retirada.
+                  </p>
                 ) : (
-                  <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200" />
+                  <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                 )}
 
                 {/* Desfazer: pede confirmação antes de devolver ao estoque */}
                 {!desfeita &&
                   (estaConfirmando ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm">
-                      <span className="mr-auto text-amber-900">Desfazer esta retirada? Os itens voltam ao estoque.</span>
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
+                      <span className="mr-auto text-amber-900 dark:text-amber-200">
+                        Desfazer esta retirada? Os itens voltam ao estoque.
+                      </span>
                       <button
                         type="button"
                         onClick={() => desfazer.mutate(r.id)}
                         disabled={processando}
-                        className="h-11 rounded-lg bg-red-700 px-4 font-medium text-white hover:bg-red-800 disabled:opacity-60"
+                        className="h-11 rounded-lg bg-red-700 px-4 font-medium text-white hover:bg-red-800 disabled:opacity-60 dark:bg-red-600 dark:hover:bg-red-500"
                       >
                         {processando ? "Desfazendo..." : "Sim, desfazer"}
                       </button>
@@ -310,7 +325,7 @@ export function Historico() {
                         type="button"
                         onClick={() => setConfirmando(null)}
                         disabled={processando}
-                        className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100"
+                        className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                       >
                         Manter
                       </button>
@@ -319,7 +334,7 @@ export function Historico() {
                     <button
                       type="button"
                       onClick={() => setConfirmando(r.id)}
-                      className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+                      className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-slate-700 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-950/40"
                     >
                       Desfazer retirada
                     </button>
@@ -332,7 +347,7 @@ export function Historico() {
 
       {aplicados && total > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <p aria-live="polite" className="text-slate-600">
+          <p aria-live="polite" className="text-slate-600 dark:text-slate-400">
             Mostrando {inicio}–{fim} de {total} retiradas
           </p>
           <div className="flex flex-wrap items-center gap-3">
@@ -344,7 +359,7 @@ export function Historico() {
                   setLimite(Number(e.target.value));
                   setPagina(1);
                 }}
-                className="h-11 rounded-lg border border-slate-300 bg-white px-2"
+                className="h-11 rounded-lg border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               >
                 {TAMANHOS.map((t) => (
                   <option key={t} value={t}>
@@ -357,7 +372,7 @@ export function Historico() {
               type="button"
               onClick={() => setPagina((p) => Math.max(1, p - 1))}
               disabled={pagina <= 1 || isFetching}
-              className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Anterior
             </button>
@@ -368,7 +383,7 @@ export function Historico() {
               type="button"
               onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
               disabled={pagina >= totalPaginas || isFetching}
-              className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Próxima
             </button>
