@@ -50,6 +50,14 @@ export function podeDesfazerRetirada(perfil?: PerfilUsuario | null): boolean {
   return perfil === "ALMOXARIFADO" || perfil === "SUPERVISOR";
 }
 
+export function podeCadastrarFornecedor(perfil?: PerfilUsuario | null): boolean {
+  return perfil === "SUPERVISOR";
+}
+
+export function podeVerFornecedores(perfil?: PerfilUsuario | null): boolean {
+  return perfil === "ALMOXARIFADO" || perfil === "COMPRAS" || perfil === "SUPERVISOR";
+}
+
 let cacheBruto: string | null = null;
 let cacheSessao: Sessao | null = null;
 

@@ -16,6 +16,9 @@ const MENSAGENS: Record<string, string> = {
   TOKEN_EXPIRADO: "Sua sessão expirou. Faça login novamente.",
   SEM_PERMISSAO: "Seu perfil de usuário não tem permissão para realizar esta ação.",
   PEDIDO_SEM_ITENS: "O pedido precisa ter pelo menos um item.",
+  CNPJ_DUPLICADO: "Já existe um fornecedor com este CNPJ.",
+  CODIGO_DUPLICADO: "Já existe um produto com este código. Use outro código ou escolha o produto na lista.",
+  PRODUTO_INVALIDO: "Há produtos inexistentes ou inativos na lista. Atualize a página e escolha de novo.",
 };
 
 export function mensagemDeErro(e: unknown): string {

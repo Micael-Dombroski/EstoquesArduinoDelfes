@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTema } from "@/app/providers";
-import { ROTULO_PERFIL, podeSolicitarCompra, useSessao } from "@/lib/auth";
+import { ROTULO_PERFIL, podeSolicitarCompra, podeVerFornecedores, useSessao } from "@/lib/auth";
 import { usePedidosEntrada, useRecebimentos } from "@/lib/hooks";
 
 const LINKS = [
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: false, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },
+    { href: "/fornecedores", rotulo: "Fornecedores", apenasCompras: false, ocultoSolicitante: true },
 ];
 
 function IconeSol() {
@@ -43,7 +44,11 @@ export function Nav() {
   const { data: pendentesNf = [] } = useRecebimentos("AGUARDANDO_NF");
 
   const ativo = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-  const linksVisiveis = LINKS.filter((l) => !l.apenasCompras || podeSolicitarCompra(usuario?.perfil));
+    const linksVisiveis = LINKS.filter(
+    (l) =>
+      (!l.apenasCompras || podeSolicitarCompra(usuario?.perfil)) &&
+      (!l.ocultoSolicitante || podeVerFornecedores(usuario?.perfil)),
+  );
   const infoPerfil = usuario ? ROTULO_PERFIL[usuario.perfil] : null;
   const qtdRascunhos = rascunhos.length;
   const qtdPendentesNf = pendentesNf.length;
