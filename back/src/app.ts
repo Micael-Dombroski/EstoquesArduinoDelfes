@@ -15,6 +15,8 @@ import { estoqueRouter } from './modules/estoque/estoque.routes';
 import { reposicaoRouter } from './modules/reposicao/reposicao.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { acompanhamentoRouter } from './modules/acompanhamento/acompanhamento.routes';
+import { cadastroFornecedorRouter } from './modules/cadastro-fornecedor/cadastro-fornecedor.routes';
+import { gestaoFornecedorRouter } from './modules/gestao-fornecedor/gestao-fornecedor.routes'; // ajuste o caminho
 
 export const app = express();
 
@@ -38,6 +40,8 @@ api.use('/movimentacoes', movimentacoesRouter);
 api.use('/estoque', estoqueRouter);
 api.use('/reposicao', reposicaoRouter);
 api.use('/acompanhamento', acompanhamentoRouter);
+api.use('/cadastro-fornecedor', cadastroFornecedorRouter);
+api.use('/gestao-fornecedores', gestaoFornecedorRouter);
 
 app.use('/api/v1', api);
 

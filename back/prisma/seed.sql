@@ -90,11 +90,12 @@ INSERT INTO usuarios (id, nome, email, senha_hash, perfil, requisitante_id) VALU
   (3, 'Paula Ribeiro',        'compras@estoque.local',      '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'COMPRAS',      NULL),
   (4, 'Roberto Nunes',        'supervisor@estoque.local',   '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'SUPERVISOR',   6);
 
+-- CNPJs fictícios, mas com dígitos verificadores válidos (passam na validação do cadastro de fornecedor).
 INSERT INTO fornecedores (id, nome, cnpj, contato, email, telefone, valor_minimo_pedido, atualizado_em) VALUES
-  (1, 'Distribuidora Catarinense de Eletrônicos', '12.345.678/0001-90', 'Marcos Teixeira', 'vendas@dce.example.com',               '(49) 3222-1000', 400.00, now()),
-  (2, 'Casa dos Componentes',                     '23.456.789/0001-01', 'Paula Ribeiro',   'contato@casadoscomponentes.example.com', '(11) 4000-2000', 250.00, now()),
-  (3, 'Maker Brasil Atacado',                     '34.567.890/0001-12', 'Rafael Souza',    'atacado@makerbrasil.example.com',        '(41) 3030-4000', 600.00, now()),
-  (4, 'Planalto Ferramentas e EPI',               '45.678.901/0001-23', 'Joana Meireles',  'pedidos@planalto.example.com',           '(49) 3251-5000', 150.00, now());
+  (1, 'Distribuidora Catarinense de Eletrônicos', '12.345.678/0001-95', 'Marcos Teixeira', 'vendas@dce.example.com',               '(49) 3222-1000', 400.00, now()),
+  (2, 'Casa dos Componentes',                     '23.456.789/0001-95', 'Paula Ribeiro',   'contato@casadoscomponentes.example.com', '(11) 4000-2000', 250.00, now()),
+  (3, 'Maker Brasil Atacado',                     '34.567.890/0001-30', 'Rafael Souza',    'atacado@makerbrasil.example.com',        '(41) 3030-4000', 600.00, now()),
+  (4, 'Planalto Ferramentas e EPI',               '45.678.901/0001-75', 'Joana Meireles',  'pedidos@planalto.example.com',           '(49) 3251-5000', 150.00, now());
 
 -- Definição dos produtos e do comportamento planejado
 --   taxa        = retirada média por dia (0 = item parado)
