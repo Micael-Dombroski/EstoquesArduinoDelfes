@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { podeSolicitarCompra, useSessao } from "@/lib/auth";
 import { mensagemDeErro } from "@/lib/errors";
 import { fmt } from "@/lib/format";
 import { useSugestoes } from "@/lib/hooks";
@@ -11,9 +13,12 @@ import type { GrupoSugestao } from "@/lib/types";
 
 export function Sugestoes() {
   const qc = useQueryClient();
+  const router = useRouter();
+  const { usuario } = useSessao();
   const { data: grupos = [], isLoading, isError, error } = useSugestoes();
   const [quantidades, setQuantidades] = useState<Record<number, string>>({});
   const [excluidos, setExcluidos] = useState<Record<number, boolean>>({});
+  const permitidoSolicitar = podeSolicitarCompra(usuario?.perfil);
 
   const gerar = useMutation({
     mutationFn: (g: GrupoSugestao) =>
@@ -28,7 +33,16 @@ export function Sugestoes() {
       }),
     onSuccess: (_, g) => {
       qc.invalidateQueries();
-      toast.success(`Rascunho de pedido criado para ${g.fornecedorNome ?? "o fornecedor"}`);
+      toast.success(
+        `Solicitação de compra criada para ${g.fornecedorNome ?? "o fornecedor"} e enviada para revisão de Compras / Supervisor`,
+        {
+          duration: 6000,
+          action: {
+            label: "Ver pedidos / OC",
+            onClick: () => router.push("/pedidos"),
+          },
+        },
+      );
     },
     onError: (e) => toast.error(mensagemDeErro(e)),
   });
@@ -55,11 +69,11 @@ export function Sugestoes() {
               <h2 className="font-semibold">{g.fornecedorNome ?? "Sem fornecedor cadastrado"}</h2>
               <button
                 type="button"
-                disabled={g.fornecedorId == null || selecionados === 0 || gerar.isPending}
+                disabled={!permitidoSolicitar || g.fornecedorId == null || selecionados === 0 || gerar.isPending}
                 onClick={() => gerar.mutate(g)}
                 className="h-11 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-blue-600 dark:hover:bg-blue-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               >
-                Gerar pedido ({selecionados})
+                Solicitar compra ({selecionados})
               </button>
             </header>
             <ul className="divide-y divide-slate-200 dark:divide-slate-800">

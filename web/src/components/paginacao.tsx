@@ -12,7 +12,7 @@ type Props = {
 };
 
 const botao =
-  "h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50";
+  "h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800";
 
 // Mesma lógica do histórico de retiradas: tamanhos de página, anterior/próxima e contador.
 export function Paginacao({ pagina, limite, total, tamanhos, ocupado, rotulo, onPagina, onLimite }: Props) {
@@ -22,7 +22,7 @@ export function Paginacao({ pagina, limite, total, tamanhos, ocupado, rotulo, on
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-      <p aria-live="polite" className="text-slate-600">
+      <p aria-live="polite" className="text-slate-600 dark:text-slate-400">
         Mostrando {inicio}–{fim} de {total} {rotulo}
       </p>
       <div className="flex flex-wrap items-center gap-3">
@@ -31,7 +31,7 @@ export function Paginacao({ pagina, limite, total, tamanhos, ocupado, rotulo, on
           <select
             value={limite}
             onChange={(e) => onLimite(Number(e.target.value))}
-            className="h-11 rounded-lg border border-slate-300 bg-white px-2"
+            className="h-11 rounded-lg border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             {tamanhos.map((t) => (
               <option key={t} value={t}>

@@ -1,6 +1,15 @@
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { api, unwrapList, unwrapOne, unwrapPage } from "./api";
-import type { GrupoSugestao, Produto, Requisitante, Retirada } from "./types";
+import type {
+  GrupoSugestao,
+  PedidoEntrada,
+  Produto,
+  RecebimentoEntrada,
+  Requisitante,
+  Retirada,
+  StatusPedidoEntrada,
+  StatusRecebimento,
+} from "./types";
 
 // O catálogo é carregado uma vez e filtrado no cliente (busca instantânea).
 export const useProdutos = () =>
@@ -23,6 +32,28 @@ export const useSugestoes = () =>
     queryKey: ["reposicao", "sugestoes"],
     queryFn: async () => unwrapList<GrupoSugestao>(await api("/reposicao/sugestoes")),
     staleTime: 0,
+  });
+
+export const usePedidosEntrada = (status?: StatusPedidoEntrada) =>
+  useQuery({
+    queryKey: ["pedidos-entrada", status ?? "TODOS"],
+    queryFn: async () => {
+      const q = new URLSearchParams({ limite: "50" });
+      if (status) q.set("status", status);
+      return unwrapList<PedidoEntrada>(await api(`/pedidos-entrada?${q}`));
+    },
+    staleTime: 10_000,
+  });
+
+export const useRecebimentos = (status?: StatusRecebimento) =>
+  useQuery({
+    queryKey: ["recebimentos-entrada", status ?? "TODOS"],
+    queryFn: async () => {
+      const q = new URLSearchParams();
+      if (status) q.set("status", status);
+      return unwrapList<RecebimentoEntrada>(await api(`/pedidos-entrada/recebimentos?${q}`));
+    },
+    staleTime: 5_000,
   });
 
 // ----- Histórico de retiradas -----

@@ -1,17 +1,34 @@
 // Contrato de GET /api/v1/acompanhamento/entradas e regras de apresentação.
 
+import type { StatusPedidoEntrada as StatusEntradaBanco } from "@/lib/types";
+
 export type StatusEntrada = "pendente" | "aprovado" | "recusado" | "a_caminho" | "recebido" | "cancelado";
+
+export type ItemPedidoEntradaAcomp = {
+  id: number;
+  produtoId: number;
+  codigo?: string;
+  nome: string;
+  unidade: string;
+  marca?: string | null;
+  quantidade: string;
+  quantidadeRecebida: string;
+  precoUnitario?: string | null;
+};
 
 export type PedidoEntradaAcomp = {
   id: number;
+  numeroOc?: string | null;
   status: StatusEntrada;
-  fornecedor: { id: number; nome: string };
+  statusBanco?: StatusEntradaBanco;
+  fornecedor: { id: number; nome: string; valorMinimoPedido?: string | null } | null;
   solicitante: { id: number; nome: string } | null;
   dataPedido: string; // ISO
   previsaoEntrega: string | null; // AAAA-MM-DD
   dataRecebimento: string | null; // ISO
   observacao: string | null;
-  itens: { id: number; produtoId: number; nome: string; unidade: string; quantidade: string; quantidadeRecebida: string }[];
+  recebimentosPendentesNf?: number;
+  itens: ItemPedidoEntradaAcomp[];
 };
 
 export type FiltrosEntradas = {
@@ -21,15 +38,34 @@ export type FiltrosEntradas = {
   entregaAte: string;
   status: string;
   solicitanteId: string;
+  atrasados: string;
 };
 
 export const STATUS: Record<StatusEntrada, { rotulo: string; classe: string }> = {
-  pendente: { rotulo: "Pendente", classe: "bg-amber-100 text-amber-900" },
-  aprovado: { rotulo: "Aprovado", classe: "bg-blue-100 text-blue-900" },
-  recusado: { rotulo: "Recusado", classe: "bg-red-100 text-red-800" },
-  a_caminho: { rotulo: "A caminho", classe: "bg-indigo-100 text-indigo-900" },
-  recebido: { rotulo: "Recebido", classe: "bg-emerald-100 text-emerald-800" },
-  cancelado: { rotulo: "Cancelado", classe: "bg-slate-200 text-slate-700" },
+  pendente: {
+    rotulo: "Aguardando revisão",
+    classe: "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300",
+  },
+  aprovado: {
+    rotulo: "Aprovado",
+    classe: "bg-blue-100 text-blue-900 dark:bg-blue-950/70 dark:text-blue-300",
+  },
+  recusado: {
+    rotulo: "Recusado",
+    classe: "bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-300",
+  },
+  a_caminho: {
+    rotulo: "OC emitida · A caminho",
+    classe: "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-300",
+  },
+  recebido: {
+    rotulo: "Recebido",
+    classe: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300",
+  },
+  cancelado: {
+    rotulo: "Cancelado",
+    classe: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
 };
 
 // "2026-11-12" (ou ISO) -> "12/11/2026"

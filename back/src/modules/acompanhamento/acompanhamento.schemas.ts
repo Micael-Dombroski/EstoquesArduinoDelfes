@@ -49,6 +49,7 @@ export const consultaSchema = z
     entregaAte: dia.optional(),
     status: z.enum(STATUS_TELA).optional(),
     solicitanteId: z.coerce.number().int().positive().optional(),
+    atrasados: z.enum(["true", "false"]).optional(),
   })
   .strict()
   .superRefine((q, ctx) => {

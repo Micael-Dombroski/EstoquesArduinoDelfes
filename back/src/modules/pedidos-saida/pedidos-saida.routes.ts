@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { exigirPerfil } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import { idParamSchema } from '../../shared/schemas';
 import * as controller from './pedidos-saida.controller';
@@ -10,4 +11,9 @@ export const pedidosSaidaRouter = Router();
 pedidosSaidaRouter.get('/', validate({ query: listarSaidasSchema }), controller.listar);
 pedidosSaidaRouter.get('/:id', validate({ params: idParamSchema }), controller.obter);
 pedidosSaidaRouter.post('/', validate({ body: criarSaidaSchema }), controller.criar);
-pedidosSaidaRouter.post('/:id/cancelar', validate({ params: idParamSchema }), controller.cancelar);
+pedidosSaidaRouter.post(
+  '/:id/cancelar',
+  exigirPerfil('ALMOXARIFADO', 'SUPERVISOR'),
+  validate({ params: idParamSchema }),
+  controller.cancelar,
+);

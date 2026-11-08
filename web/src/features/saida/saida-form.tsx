@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
+import { podeDesfazerRetirada, useSessao } from "@/lib/auth";
 import { mensagemDeErro } from "@/lib/errors";
 import { fmt, normaliza } from "@/lib/format";
 import { useProdutos, useRequisitantes } from "@/lib/hooks";
@@ -13,21 +14,27 @@ const CHAVE_REQUISITANTE = "estoque:requisitanteId";
 
 export function SaidaForm() {
   const qc = useQueryClient();
+  const { usuario } = useSessao();
   const { data: produtos = [] } = useProdutos();
   const { data: requisitantes = [] } = useRequisitantes();
 
   const busca = useRef<HTMLInputElement>(null);
   const [termo, setTermo] = useState("");
   const [carrinho, setCarrinho] = useState<Record<number, number>>({});
-  const [requisitanteId, setRequisitanteId] = useState("");
+  const [requisitanteManual, setRequisitanteManual] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return localStorage.getItem(CHAVE_REQUISITANTE) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [faltantes, setFaltantes] = useState<Record<number, string>>({});
 
-  // Lembra o último requisitante usado.
-  useEffect(() => {
-    try {
-      setRequisitanteId(localStorage.getItem(CHAVE_REQUISITANTE) ?? "");
-    } catch {}
-  }, []);
+  const requisitanteId =
+    usuario?.perfil === "SOLICITANTE" && usuario.requisitanteId
+      ? String(usuario.requisitanteId)
+      : requisitanteManual || (usuario?.requisitanteId ? String(usuario.requisitanteId) : "");
 
   // "/" leva o foco para a busca de qualquer lugar da tela.
   useEffect(() => {
@@ -62,8 +69,9 @@ export function SaidaForm() {
   function alterar(id: number, delta: number) {
     setCarrinho((c) => {
       const proximo = (c[id] ?? 0) + delta;
-      const { [id]: _, ...resto } = c;
-      return proximo > 0 ? { ...resto, [id]: proximo } : resto;
+      const copia = { ...c };
+      delete copia[id];
+      return proximo > 0 ? { ...copia, [id]: proximo } : copia;
     });
     setFaltantes({});
   }
@@ -97,7 +105,10 @@ export function SaidaForm() {
       qc.invalidateQueries(); // saldo mudou: produtos, reposição e estoque
       toast.success("Retirada registrada", {
         duration: 8000,
-        action: id ? { label: "Desfazer", onClick: () => desfazer(id) } : undefined,
+        action:
+          id && podeDesfazerRetirada(usuario?.perfil)
+            ? { label: "Desfazer", onClick: () => desfazer(id) }
+            : undefined,
       });
       busca.current?.focus();
     },
@@ -229,13 +240,14 @@ export function SaidaForm() {
           <select
             id="requisitante"
             value={requisitanteId}
+            disabled={usuario?.perfil === "SOLICITANTE" && usuario.requisitanteId !== null}
             onChange={(e) => {
-              setRequisitanteId(e.target.value);
+              setRequisitanteManual(e.target.value);
               try {
                 localStorage.setItem(CHAVE_REQUISITANTE, e.target.value);
               } catch {}
             }}
-            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus-visible:outline-blue-400"
+            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus-visible:outline-blue-400"
           >
             <option value="">Selecione</option>
             {requisitantes

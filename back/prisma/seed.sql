@@ -63,6 +63,33 @@ INSERT INTO requisitantes (id, nome, setor) VALUES
   (5, 'Mariana Costa',         'Manutenção'),
   (6, 'Ricardo Nunes',         'Manutenção');
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'perfil_usuario') THEN
+    CREATE TYPE "perfil_usuario" AS ENUM ('SOLICITANTE', 'ALMOXARIFADO', 'COMPRAS', 'SUPERVISOR');
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id SERIAL PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  senha_hash VARCHAR(255) NOT NULL,
+  perfil perfil_usuario NOT NULL,
+  requisitante_id INTEGER REFERENCES requisitantes(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  ativo BOOLEAN NOT NULL DEFAULT true,
+  criado_em TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+TRUNCATE usuarios RESTART IDENTITY CASCADE;
+
+-- Senha padrão de demonstração para todos: 123456 (SHA-256)
+INSERT INTO usuarios (id, nome, email, senha_hash, perfil, requisitante_id) VALUES
+  (1, 'Ana Beatriz Lima',     'solicitante@estoque.local',  '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'SOLICITANTE',  1),
+  (2, 'Carlos Eduardo Rocha', 'almoxarifado@estoque.local', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'ALMOXARIFADO', 2),
+  (3, 'Paula Ribeiro',        'compras@estoque.local',      '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'COMPRAS',      NULL),
+  (4, 'Roberto Nunes',        'supervisor@estoque.local',   '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'SUPERVISOR',   6);
+
 INSERT INTO fornecedores (id, nome, cnpj, contato, email, telefone, valor_minimo_pedido, atualizado_em) VALUES
   (1, 'Distribuidora Catarinense de Eletrônicos', '12.345.678/0001-90', 'Marcos Teixeira', 'vendas@dce.example.com',               '(49) 3222-1000', 400.00, now()),
   (2, 'Casa dos Componentes',                     '23.456.789/0001-01', 'Paula Ribeiro',   'contato@casadoscomponentes.example.com', '(11) 4000-2000', 250.00, now()),
@@ -250,10 +277,16 @@ INSERT INTO itens_pedido_entrada (id, pedido_id, produto_id, quantidade, quantid
   (211, 15,  6, 100, 0, 'Genérica',  1.20),
   (212, 16, 22,  10, 0, 'Genérica',  9.50);
 
+ALTER TABLE pedidos_entrada ADD COLUMN IF NOT EXISTS numero_oc VARCHAR(40);
+UPDATE pedidos_entrada
+   SET numero_oc = 'OC-' || LPAD(id::text, 4, '0')
+ WHERE status IN ('ENVIADO', 'RECEBIDO_PARCIAL', 'RECEBIDO');
+
 -- -----------------------------------------------------------------------------
 -- 6. Ajusta as sequências (os ids acima foram inseridos explicitamente)
 -- -----------------------------------------------------------------------------
 SELECT setval(pg_get_serial_sequence('requisitantes',         'id'), (SELECT max(id) FROM requisitantes));
+SELECT setval(pg_get_serial_sequence('usuarios',              'id'), (SELECT max(id) FROM usuarios));
 SELECT setval(pg_get_serial_sequence('fornecedores',          'id'), (SELECT max(id) FROM fornecedores));
 SELECT setval(pg_get_serial_sequence('produtos',              'id'), (SELECT max(id) FROM produtos));
 SELECT setval(pg_get_serial_sequence('pedidos_entrada',       'id'), (SELECT max(id) FROM pedidos_entrada));

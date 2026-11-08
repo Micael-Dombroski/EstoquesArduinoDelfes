@@ -56,3 +56,96 @@ export type Retirada = {
 };
 
 export type Pagina<T> = { itens: T[]; total: number };
+
+// ----- Autenticação e Perfis -----
+export type PerfilUsuario = "SOLICITANTE" | "ALMOXARIFADO" | "COMPRAS" | "SUPERVISOR";
+
+export type Usuario = {
+  id: number;
+  nome: string;
+  email: string;
+  perfil: PerfilUsuario;
+  requisitanteId: number | null;
+};
+
+// ----- Solicitações e Pedidos de Compra (GET /pedidos-entrada) -----
+export type StatusPedidoEntrada =
+  | "RASCUNHO"
+  | "APROVADO"
+  | "RECUSADO"
+  | "ENVIADO"
+  | "RECEBIDO_PARCIAL"
+  | "RECEBIDO"
+  | "CANCELADO";
+export type StatusRecebimento = "AGUARDANDO_NF" | "CONCLUIDO";
+
+export type ItemPedidoEntrada = {
+  id: number;
+  pedidoId: number;
+  produtoId: number;
+  quantidade: string;
+  quantidadeRecebida: string;
+  marca?: string | null;
+  precoUnitario?: string | null;
+  produto?: {
+    id: number;
+    codigo: string;
+    nome: string;
+    unidade: string;
+    marca?: string | null;
+  } | null;
+};
+
+export type ItemRecebimentoEntrada = {
+  id: number;
+  recebimentoId: number;
+  itemPedidoId: number;
+  produtoId: number;
+  quantidade: string;
+  itemPedido?: {
+    id: number;
+    produto?: {
+      id: number;
+      codigo: string;
+      nome: string;
+      unidade: string;
+    } | null;
+  } | null;
+};
+
+export type RecebimentoEntrada = {
+  id: number;
+  pedidoId: number;
+  status: StatusRecebimento;
+  numeroNf?: string | null;
+  observacao?: string | null;
+  recebidoPorNome?: string | null;
+  nfLancadaPorNome?: string | null;
+  dataRecebimento: string;
+  dataNf?: string | null;
+  pedido?: {
+    id: number;
+    numeroOc?: string | null;
+    status: StatusPedidoEntrada;
+    fornecedor?: { id: number; nome: string } | null;
+  } | null;
+  itens: ItemRecebimentoEntrada[];
+};
+
+export type PedidoEntrada = {
+  id: number;
+  fornecedorId: number;
+  numeroOc?: string | null;
+  status: StatusPedidoEntrada;
+  dataPedido: string;
+  previsaoEntrega?: string | null;
+  dataRecebimento?: string | null;
+  observacao?: string | null;
+  fornecedor?: {
+    id: number;
+    nome: string;
+    valorMinimoPedido?: string | null;
+  } | null;
+  itens?: ItemPedidoEntrada[];
+  recebimentos?: RecebimentoEntrada[];
+};
