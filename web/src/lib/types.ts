@@ -37,19 +37,46 @@ export type GrupoSugestao = {
 // details do erro 422 SALDO_INSUFICIENTE
 export type Faltante = { produtoId: number; saldoAtual: string };
 
-// ----- Histórico de retiradas (GET /pedidos-saida) -----
+// ----- Histórico e Solicitações de retiradas (GET /pedidos-saida) -----
+export type StatusPedidoSaida = "PENDENTE" | "CONCLUIDO" | "CANCELADO";
+export type SituacaoFaltanteSaida = "NECESSITA_COMPRA" | "A_CAMINHO";
+
+export type ItemEntradaResumoProduto = {
+  id: number;
+  quantidade: string;
+  quantidadeRecebida: string;
+  pedido: {
+    id: number;
+    numeroOc?: string | null;
+    status: StatusPedidoEntrada;
+    previsaoEntrega?: string | null;
+  };
+};
+
 export type ItemRetirada = {
   id: number;
   produtoId: number;
   quantidade: string;
-  produto?: { nome: string; unidade: string } | null;
+  separado?: boolean;
+  quantidadeSeparada?: string;
+  situacaoFaltante?: SituacaoFaltanteSaida | null;
+  produto?: {
+    id?: number;
+    codigo?: string;
+    nome: string;
+    unidade: string;
+    marca?: string | null;
+    saldoAtual?: string;
+    pontoReposicao?: string;
+    itensEntrada?: ItemEntradaResumoProduto[];
+  } | null;
 };
 
 export type Retirada = {
   id: number;
   requisitanteId: number;
-  requisitante?: { nome: string } | null;
-  status: "CONCLUIDO" | "CANCELADO";
+  requisitante?: { id?: number; nome: string; setor?: string | null } | null;
+  status: StatusPedidoSaida;
   dataPedido: string; // ISO 8601
   observacao?: string | null;
   itens?: ItemRetirada[]; // pode não vir na listagem; nesse caso o front busca o detalhe
