@@ -3,7 +3,15 @@ import { paginacaoSchema } from '../../shared/pagination';
 import { ateQuery, deQuery } from '../../shared/schemas';
 import { quantidadePositiva, valorNaoNegativo } from '../../shared/decimal';
 
-const statusEnum = z.enum(['RASCUNHO', 'ENVIADO', 'RECEBIDO_PARCIAL', 'RECEBIDO', 'CANCELADO']);
+const statusEnum = z.enum([
+  'RASCUNHO',
+  'APROVADO',
+  'RECUSADO',
+  'ENVIADO',
+  'RECEBIDO_PARCIAL',
+  'RECEBIDO',
+  'CANCELADO',
+]);
 const statusRecebimentoEnum = z.enum(['AGUARDANDO_NF', 'CONCLUIDO']);
 
 const itemSchema = z

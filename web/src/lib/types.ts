@@ -69,7 +69,14 @@ export type Usuario = {
 };
 
 // ----- Solicitações e Pedidos de Compra (GET /pedidos-entrada) -----
-export type StatusPedidoEntrada = "RASCUNHO" | "ENVIADO" | "RECEBIDO_PARCIAL" | "RECEBIDO" | "CANCELADO";
+export type StatusPedidoEntrada =
+  | "RASCUNHO"
+  | "APROVADO"
+  | "RECUSADO"
+  | "ENVIADO"
+  | "RECEBIDO_PARCIAL"
+  | "RECEBIDO"
+  | "CANCELADO";
 export type StatusRecebimento = "AGUARDANDO_NF" | "CONCLUIDO";
 
 export type ItemPedidoEntrada = {

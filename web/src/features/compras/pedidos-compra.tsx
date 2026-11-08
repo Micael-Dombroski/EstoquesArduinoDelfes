@@ -25,6 +25,14 @@ const BADGE_STATUS: Record<StatusPedidoEntrada, { texto: string; classe: string 
     texto: "Solicitação · Aguardando revisão",
     classe: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
   },
+  APROVADO: {
+    texto: "Aprovado · Aguardando envio",
+    classe: "bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300",
+  },
+  RECUSADO: {
+    texto: "Recusado",
+    classe: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
+  },
   ENVIADO: {
     texto: "OC emitida · A caminho",
     classe: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",

@@ -4,8 +4,10 @@
 -- ATENÇÃO: apaga TODOS os dados das tabelas antes de popular. Use só em
 -- ambiente de desenvolvimento/demonstração.
 --
--- Pré-requisito: migrações aplicadas, incluindo a "extras" (trigger de saldo,
--- CHECKs e views). O próprio script confere isso e para com uma mensagem clara.
+-- Pré-requisito: migrações aplicadas, incluindo:
+--   * "extras" (trigger de saldo, CHECKs e views)
+--   * "acompanhamento_entradas" (status APROVADO/RECUSADO e coluna solicitante_id)
+-- O próprio script confere isso e para com uma mensagem clara.
 --
 -- Como rodar (na RAIZ do projeto, com o banco no ar):
 --   CMD:
@@ -17,7 +19,9 @@
 -- O que gera:
 --   25 produtos (componentes de eletrônica/Arduino), 4 fornecedores, 6 requisitantes,
 --   carga inicial de estoque, ~30 dias de retiradas (só dias úteis), 2 retiradas
---   desfeitas (estorno) e 3 pedidos de compra (2 enviados e 1 rascunho).
+--   desfeitas (estorno) e 12 pedidos de compra em todos os status da tela
+--   "Acompanhar pedidos" (pendente, aprovado, recusado, a caminho, recebido e cancelado),
+--   com solicitante, um deles atrasado e um sem previsão de entrega.
 --   Os saldos finais são planejados: ~6 produtos em vermelho, ~4 em amarelo,
 --   1 item parado, e a tela "O que comprar hoje" sugere ~4 produtos em 3 fornecedores.
 --   O consumo varia a cada execução do seed apenas pela semente fixa (resultado repetível).
@@ -30,6 +34,13 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_movimentacao_aplica_saldo') THEN
     RAISE EXCEPTION 'Aplique a migracao "extras" antes do seed (trigger de saldo nao encontrada).';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'pedidos_entrada' AND column_name = 'solicitante_id')
+     OR NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+                     WHERE t.typname = 'status_pedido_entrada' AND e.enumlabel = 'APROVADO') THEN
+    RAISE EXCEPTION 'Aplique a migracao "acompanhamento_entradas" antes do seed (coluna solicitante_id e status APROVADO/RECUSADO nao encontrados).';
   END IF;
 END $$;
 
@@ -169,8 +180,9 @@ SELECT row_number() OVER (ORDER BY pe.ts, i.produto_id) AS item_id,
 -- 3. Carga inicial de estoque (pedidos de entrada já recebidos, há ~35 dias)
 --    Quantidade = tudo que será retirado + saldo final planejado.
 -- -----------------------------------------------------------------------------
-INSERT INTO pedidos_entrada (id, fornecedor_id, status, data_pedido, previsao_entrega, data_recebimento, observacao, atualizado_em)
-SELECT f.id, f.id, 'RECEBIDO'::status_pedido_entrada,
+INSERT INTO pedidos_entrada (id, fornecedor_id, solicitante_id, status, data_pedido, previsao_entrega, data_recebimento, observacao, atualizado_em)
+SELECT f.id, f.id, CASE f.id WHEN 1 THEN 1 WHEN 2 THEN 2 WHEN 3 THEN 1 ELSE 2 END,
+       'RECEBIDO'::status_pedido_entrada,
        now() - interval '38 days', current_date - 35, now() - interval '35 days',
        'Carga inicial de estoque', now()
   FROM fornecedores f;
@@ -226,21 +238,44 @@ SELECT m.produto_id, 'ESTORNO'::tipo_movimentacao, -m.variacao,
  WHERE i.pedido_id IN (SELECT id FROM tmp_cancel);
 
 -- -----------------------------------------------------------------------------
--- 5. Pedidos de compra em andamento
---    5 e 6: enviados (entram no "já a caminho" e evitam sugestão duplicada)
---    7: rascunho (ainda não conta como a caminho)
+-- 5. Pedidos de compra em andamento (tela "Acompanhar pedidos")
+--    Mapa de status: Pendente = RASCUNHO; Aprovado = APROVADO; Recusado = RECUSADO;
+--    A caminho = ENVIADO ou RECEBIDO_PARCIAL; Recebido = RECEBIDO (pedidos 1 a 4, acima).
+--    Só os ENVIADOS entram no "já a caminho" da reposição. Nenhum destes gera movimentação.
 -- -----------------------------------------------------------------------------
-INSERT INTO pedidos_entrada (id, fornecedor_id, status, data_pedido, previsao_entrega, data_recebimento, observacao, atualizado_em) VALUES
-  (5, 3, 'ENVIADO'::status_pedido_entrada,  now() - interval '3 days', current_date + 5, NULL, 'Reposição de placas e sensores', now()),
-  (6, 4, 'ENVIADO'::status_pedido_entrada,  now() - interval '1 day',  current_date + 1, NULL, NULL,                              now()),
-  (7, 2, 'RASCUNHO'::status_pedido_entrada, now(),                     NULL,             NULL, 'Rascunho gerado pela reposição',  now());
+INSERT INTO pedidos_entrada (id, fornecedor_id, solicitante_id, status, data_pedido, previsao_entrega, data_recebimento, observacao, atualizado_em) VALUES
+  ( 5, 3, 3, 'ENVIADO'::status_pedido_entrada,   now() - interval '3 days',  current_date + 5,  NULL, 'Reposição de placas e sensores', now()),
+  ( 6, 4, 5, 'ENVIADO'::status_pedido_entrada,   now() - interval '1 day',   current_date + 1,  NULL, NULL, now()),
+  ( 7, 2, 1, 'RASCUNHO'::status_pedido_entrada,  now(),                      NULL,              NULL, 'Rascunho gerado pela reposição', now()),
+  ( 8, 1, 2, 'RASCUNHO'::status_pedido_entrada,  now() - interval '1 day',   current_date + 6,  NULL, 'Aguardando aprovação do responsável', now()),
+  ( 9, 4, 5, 'RASCUNHO'::status_pedido_entrada,  now() - interval '2 hours', NULL,              NULL, NULL, now()),
+  (10, 3, 3, 'APROVADO'::status_pedido_entrada,  now() - interval '2 days',  current_date + 9,  NULL, 'Aprovado, falta enviar ao fornecedor', now()),
+  (11, 2, 4, 'APROVADO'::status_pedido_entrada,  now() - interval '1 day',   current_date + 4,  NULL, NULL, now()),
+  (12, 3, 4, 'RECUSADO'::status_pedido_entrada,  now() - interval '6 days',  NULL,              NULL, 'Recusado: valor acima do orçamento do mês', now()),
+  (13, 1, 6, 'RECUSADO'::status_pedido_entrada,  now() - interval '12 days', NULL,              NULL, 'Recusado: já há estoque suficiente', now()),
+  (14, 1, 2, 'ENVIADO'::status_pedido_entrada,   now() - interval '4 days',  current_date + 2,  NULL, NULL, now()),
+  (15, 2, 1, 'ENVIADO'::status_pedido_entrada,   now() - interval '9 days',  current_date - 2,  NULL, 'Fornecedor informou atraso na transportadora', now()),
+  (16, 4, 5, 'CANCELADO'::status_pedido_entrada, now() - interval '15 days', NULL,              NULL, 'Pedido duplicado', now());
 
 INSERT INTO itens_pedido_entrada (id, pedido_id, produto_id, quantidade, quantidade_recebida, marca, preco_unitario) VALUES
-  (100, 5,  3, 20, 0, 'Genérica', 42.00),
-  (101, 5,  5, 15, 0, 'Genérica',  6.50),
-  (102, 6, 23, 24, 0, 'Genérica',  4.20),
-  (103, 7, 10, 30, 0, NULL,        1.70),
-  (104, 7, 16, 20, 0, NULL,       10.50);
+  (100,  5,  3,  20, 0, 'Genérica', 42.00),
+  (101,  5,  5,  15, 0, 'Genérica',  6.50),
+  (102,  6, 23,  24, 0, 'Genérica',  4.20),
+  (103,  7, 10,  30, 0, NULL,        1.70),
+  (104,  7, 16,  20, 0, NULL,       10.50),
+  (200,  8,  8, 300, 0, 'Genérica',  0.08),
+  (201,  8, 12, 200, 0, 'Genérica',  0.22),
+  (202,  9, 20,  20, 0, 'Genérica', 38.00),
+  (203, 10, 25,  10, 0, 'Genérica', 18.00),
+  (204, 10,  2,  10, 0, 'Genérica', 32.00),
+  (205, 11, 19, 200, 0, 'Genérica',  0.90),
+  (206, 11, 18,  10, 0, 'Genérica',  8.50),
+  (207, 12, 15,  50, 0, 'Genérica', 14.90),
+  (208, 13,  9, 500, 0, 'Genérica',  0.15),
+  (209, 14,  7, 500, 0, 'Genérica',  0.08),
+  (210, 14, 11, 300, 0, 'Genérica',  0.20),
+  (211, 15,  6, 100, 0, 'Genérica',  1.20),
+  (212, 16, 22,  10, 0, 'Genérica',  9.50);
 
 ALTER TABLE pedidos_entrada ADD COLUMN IF NOT EXISTS numero_oc VARCHAR(40);
 UPDATE pedidos_entrada
@@ -270,6 +305,8 @@ UNION ALL SELECT 'requisitantes',    count(*) FROM requisitantes
 UNION ALL SELECT 'pedidos_entrada',  count(*) FROM pedidos_entrada
 UNION ALL SELECT 'pedidos_saida',    count(*) FROM pedidos_saida
 UNION ALL SELECT 'movimentacoes',    count(*) FROM movimentacoes;
+
+SELECT status, count(*) AS pedidos_de_compra FROM pedidos_entrada GROUP BY status ORDER BY status;
 
 -- Estas duas consultas dependem das views da migração "extras"
 SELECT semaforo, count(*) FROM vw_estoque_situacao GROUP BY semaforo ORDER BY semaforo;

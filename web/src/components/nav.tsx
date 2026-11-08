@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true },
   { href: "/compras", rotulo: "Solicitações / OC", apenasCompras: true, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
+  { href: "/pedidos", rotulo: "Pedidos", apenasCompras: false },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },
 ];
 
