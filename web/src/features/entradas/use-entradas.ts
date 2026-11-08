@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api, unwrapPage } from "@/lib/api";
 import type { FiltrosEntradas, PedidoEntradaAcomp } from "./tipos";
 
-const CHAVES = ["pedidoDe", "pedidoAte", "entregaDe", "entregaAte", "status", "solicitanteId"] as const;
+const CHAVES = ["pedidoDe", "pedidoAte", "entregaDe", "entregaAte", "status", "solicitanteId", "atrasados"] as const;
 
 export const useAcompanhamentoEntradas = (filtros: FiltrosEntradas | null, pagina: number, limite: number) =>
   useQuery({

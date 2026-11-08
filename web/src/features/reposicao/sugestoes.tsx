@@ -38,8 +38,8 @@ export function Sugestoes() {
         {
           duration: 6000,
           action: {
-            label: "Ver solicitações",
-            onClick: () => router.push("/compras"),
+            label: "Ver pedidos / OC",
+            onClick: () => router.push("/pedidos"),
           },
         },
       );

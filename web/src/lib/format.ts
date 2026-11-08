@@ -31,3 +31,7 @@ export function fmtDataHora(iso: string): string {
 export function codigoOc(pedido: { id: number; numeroOc?: string | null }): string {
   return pedido.numeroOc?.trim() || `OC-${String(pedido.id).padStart(4, "0")}`;
 }
+
+export function fmtMoeda(valor: number): string {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}

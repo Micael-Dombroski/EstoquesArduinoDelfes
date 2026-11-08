@@ -41,7 +41,7 @@ let estruturaInicializada = false;
  * Garante de forma idempotente que a coluna `numero_oc` e as tabelas de recebimento/NF existam
  * mesmo que o banco já estivesse rodando antes da migração.
  */
-async function garantirEstruturaRecebimento() {
+export async function garantirEstruturaRecebimento() {
   if (estruturaInicializada) return;
   try {
     await prisma.$executeRawUnsafe(`

@@ -28,14 +28,14 @@ const CONTAS_DEMO: Array<{
     nome: "Paula Ribeiro",
     email: "compras@estoque.local",
     senha: "123456",
-    destino: "/compras",
+    destino: "/pedidos",
   },
   {
     perfil: "SUPERVISOR",
     nome: "Roberto Nunes",
     email: "supervisor@estoque.local",
     senha: "123456",
-    destino: "/compras",
+    destino: "/pedidos",
   },
   {
     perfil: "SOLICITANTE",
@@ -48,7 +48,7 @@ const CONTAS_DEMO: Array<{
 
 function destinoPadrao(perfil: PerfilUsuario): string {
   if (perfil === "SOLICITANTE") return "/saida";
-  if (perfil === "COMPRAS") return "/compras";
+  if (perfil === "COMPRAS") return "/pedidos";
   return "/";
 }
 

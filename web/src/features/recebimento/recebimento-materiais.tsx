@@ -33,7 +33,12 @@ export function RecebimentoMateriais() {
   const { data: recebimentos = [], isLoading: carregandoRecebimentos } = useRecebimentos(abaRecebimentos);
 
   const [buscaOc, setBuscaOc] = useState("");
-  const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(null);
+  const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const param = new URLSearchParams(window.location.search).get("pedidoId");
+    const n = Number(param);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  });
   const [marcados, setMarcados] = useState<Record<number, boolean>>({});
   const [quantidades, setQuantidades] = useState<Record<number, string>>({});
   const [observacao, setObservacao] = useState("");
