@@ -27,3 +27,7 @@ export function dataLocal(d: Date = new Date()): string {
 export function fmtDataHora(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
+
+export function codigoOc(pedido: { id: number; numeroOc?: string | null }): string {
+  return pedido.numeroOc?.trim() || `OC-${String(pedido.id).padStart(4, "0")}`;
+}

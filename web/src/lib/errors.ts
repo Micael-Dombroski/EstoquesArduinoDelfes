@@ -10,6 +10,12 @@ const MENSAGENS: Record<string, string> = {
   STATUS_INVALIDO: "Esta ação não está disponível para o status atual do pedido.",
   CONFLITO: "Já existe um registro com esses dados.",
   NAO_ENCONTRADO: "Registro não encontrado. Atualize a página e tente de novo.",
+  CREDENCIAIS_INVALIDAS: "E-mail ou senha incorretos.",
+  NAO_AUTENTICADO: "Faça login para realizar esta operação.",
+  TOKEN_INVALIDO: "Sessão inválida. Faça login novamente.",
+  TOKEN_EXPIRADO: "Sua sessão expirou. Faça login novamente.",
+  SEM_PERMISSAO: "Seu perfil de usuário não tem permissão para realizar esta ação.",
+  PEDIDO_SEM_ITENS: "O pedido precisa ter pelo menos um item.",
 };
 
 export function mensagemDeErro(e: unknown): string {

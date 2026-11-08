@@ -1,11 +1,15 @@
 import type { RequestHandler } from 'express';
 import { valid } from '../../middlewares/validate';
 import type { IdParam } from '../../shared/schemas';
+import type { UsuarioSessao } from '../auth/auth.service';
 import * as service from './pedidos-entrada.service';
 import type {
   AtualizarEntrada,
   CriarEntrada,
+  EnviarEntradaBody,
+  LancarNfBody,
   ListarEntradas,
+  ListarRecebimentos,
   ReceberBody,
   SubstituirItens,
 } from './pedidos-entrada.schemas';
@@ -13,6 +17,11 @@ import type {
 export const listar: RequestHandler = async (_req, res) => {
   const { query } = valid<{ query: ListarEntradas }>(res);
   res.json(await service.listar(query));
+};
+
+export const listarRecebimentos: RequestHandler = async (_req, res) => {
+  const { query } = valid<{ query: ListarRecebimentos }>(res);
+  res.json(await service.listarRecebimentos(query));
 };
 
 export const obter: RequestHandler = async (_req, res) => {
@@ -42,13 +51,20 @@ export const excluir: RequestHandler = async (_req, res) => {
 };
 
 export const enviar: RequestHandler = async (_req, res) => {
-  const { params } = valid<{ params: IdParam }>(res);
-  res.json(await service.enviar(params.id));
+  const { params, body } = valid<{ params: IdParam; body?: EnviarEntradaBody }>(res);
+  res.json(await service.enviar(params.id, body));
 };
 
 export const receber: RequestHandler = async (_req, res) => {
   const { params, body } = valid<{ params: IdParam; body: ReceberBody }>(res);
-  res.json(await service.receber(params.id, body));
+  const usuario = res.locals.usuario as UsuarioSessao | undefined;
+  res.status(201).json(await service.receber(params.id, body, usuario?.nome));
+};
+
+export const lancarNfRecebimento: RequestHandler = async (_req, res) => {
+  const { params, body } = valid<{ params: IdParam; body: LancarNfBody }>(res);
+  const usuario = res.locals.usuario as UsuarioSessao | undefined;
+  res.json(await service.lancarNfRecebimento(params.id, body, usuario?.nome));
 };
 
 export const cancelar: RequestHandler = async (_req, res) => {

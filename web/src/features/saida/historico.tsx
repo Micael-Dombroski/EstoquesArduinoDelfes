@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { podeDesfazerRetirada, useSessao } from "@/lib/auth";
 import { mensagemDeErro } from "@/lib/errors";
 import { dataLocal, fmt, fmtDataHora } from "@/lib/format";
 import {
@@ -43,8 +44,10 @@ const campo =
 
 export function Historico() {
   const qc = useQueryClient();
+  const { usuario } = useSessao();
   const { data: produtos = [] } = useProdutos();
   const { data: requisitantes = [] } = useRequisitantes();
+  const permiteDesfazer = podeDesfazerRetirada(usuario?.perfil);
 
   const [hoje, setHoje] = useState("");
   const [form, setForm] = useState<FiltrosHistorico>({ de: "", ate: "", produtoId: "", requisitanteId: "" });
@@ -306,8 +309,9 @@ export function Historico() {
                   <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                 )}
 
-                {/* Desfazer: pede confirmação antes de devolver ao estoque */}
+                {/* Desfazer: pede confirmação antes de devolver ao estoque (apenas Almoxarifado e Supervisor) */}
                 {!desfeita &&
+                  permiteDesfazer &&
                   (estaConfirmando ? (
                     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
                       <span className="mr-auto text-amber-900 dark:text-amber-200">

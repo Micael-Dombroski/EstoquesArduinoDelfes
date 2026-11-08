@@ -1,3 +1,5 @@
+import { lerToken } from "./auth";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -13,9 +15,14 @@ export class ApiError extends Error {
 const BASE = "/api/v1";
 
 export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+  const token = lerToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
   if (res.status === 204) return undefined as T;
 

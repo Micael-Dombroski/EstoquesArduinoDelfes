@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { exigirPerfil } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import * as controller from './reposicao.controller';
 import { rascunhoSchema, sugestoesQuerySchema } from './reposicao.schemas';
@@ -6,4 +7,9 @@ import { rascunhoSchema, sugestoesQuerySchema } from './reposicao.schemas';
 export const reposicaoRouter = Router();
 
 reposicaoRouter.get('/sugestoes', validate({ query: sugestoesQuerySchema }), controller.sugestoes);
-reposicaoRouter.post('/rascunhos', validate({ body: rascunhoSchema }), controller.gerarRascunho);
+reposicaoRouter.post(
+  '/rascunhos',
+  exigirPerfil('ALMOXARIFADO', 'COMPRAS', 'SUPERVISOR'),
+  validate({ body: rascunhoSchema }),
+  controller.gerarRascunho,
+);

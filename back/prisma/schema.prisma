@@ -53,6 +53,22 @@ enum TipoMovimentacao {
   @@map("tipo_movimentacao")
 }
 
+enum PerfilUsuario {
+  SOLICITANTE
+  ALMOXARIFADO
+  COMPRAS
+  SUPERVISOR
+
+  @@map("perfil_usuario")
+}
+
+enum StatusRecebimento {
+  AGUARDANDO_NF
+  CONCLUIDO
+
+  @@map("status_recebimento")
+}
+
 // ----------------------------------------------------------------------------
 // Cadastros
 // ----------------------------------------------------------------------------
@@ -130,9 +146,26 @@ model Requisitante {
   criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
 
   pedidosSaida   PedidoSaida[]
+  usuarios       Usuario[]
 
   @@index([ativo, nome])
   @@map("requisitantes")
+}
+
+model Usuario {
+  id             Int           @id @default(autoincrement())
+  nome           String        @db.VarChar(120)
+  email          String        @unique @db.VarChar(150)
+  senhaHash      String        @map("senha_hash") @db.VarChar(255)
+  perfil         PerfilUsuario
+  requisitanteId Int?          @map("requisitante_id")
+  ativo          Boolean       @default(true)
+  criadoEm       DateTime      @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  requisitante   Requisitante? @relation(fields: [requisitanteId], references: [id], onDelete: SetNull)
+
+  @@index([ativo, perfil])
+  @@map("usuarios")
 }
 
 // ----------------------------------------------------------------------------
@@ -142,6 +175,8 @@ model Requisitante {
 model PedidoEntrada {
   id               Int                 @id @default(autoincrement())
   fornecedorId     Int                 @map("fornecedor_id")
+  /// Ordem de Compra (OC) gerada pelo Setor de Compras ao aprovar a solicitação do almoxarifado.
+  numeroOc         String?             @unique @map("numero_oc") @db.VarChar(40)
   status           StatusPedidoEntrada @default(RASCUNHO)
   dataPedido       DateTime            @default(now()) @map("data_pedido") @db.Timestamptz(6)
   previsaoEntrega  DateTime?           @map("previsao_entrega") @db.Date
@@ -150,8 +185,9 @@ model PedidoEntrada {
   criadoEm         DateTime            @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm     DateTime            @updatedAt @map("atualizado_em") @db.Timestamptz(6)
 
-  fornecedor       Fornecedor          @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  fornecedor       Fornecedor           @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
   itens            ItemPedidoEntrada[]
+  recebimentos     RecebimentoEntrada[]
 
   @@index([status, dataPedido(sort: Desc)])
   @@index([fornecedorId, dataPedido(sort: Desc)])
@@ -168,13 +204,48 @@ model ItemPedidoEntrada {
   marca               String?  @db.VarChar(80)
   precoUnitario       Decimal? @map("preco_unitario") @db.Decimal(12, 2)
 
-  pedido              PedidoEntrada @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  produto             Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  pedido              PedidoEntrada            @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto             Produto                  @relation(fields: [produtoId], references: [id], onDelete: Restrict)
   movimentacoes       Movimentacao[]
+  itensRecebimento    ItemRecebimentoEntrada[]
 
   @@unique([pedidoId, produtoId])
   @@index([produtoId])
   @@map("itens_pedido_entrada")
+}
+
+/// Conferência física de chegada de materiais pelo Almoxarifado; só entra no estoque após o Compras vincular a NF.
+model RecebimentoEntrada {
+  id               Int                      @id @default(autoincrement())
+  pedidoId         Int                      @map("pedido_id")
+  status           StatusRecebimento        @default(AGUARDANDO_NF)
+  numeroNf         String?                  @map("numero_nf") @db.VarChar(60)
+  observacao       String?
+  recebidoPorNome  String?                  @map("recebido_por_nome") @db.VarChar(120)
+  nfLancadaPorNome String?                  @map("nf_lancada_por_nome") @db.VarChar(120)
+  dataRecebimento  DateTime                 @default(now()) @map("data_recebimento") @db.Timestamptz(6)
+  dataNf           DateTime?                @map("data_nf") @db.Timestamptz(6)
+
+  pedido           PedidoEntrada            @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  itens            ItemRecebimentoEntrada[]
+
+  @@index([pedidoId, dataRecebimento(sort: Desc)])
+  @@index([status, dataRecebimento(sort: Desc)])
+  @@map("recebimentos_entrada")
+}
+
+model ItemRecebimentoEntrada {
+  id             Int                @id @default(autoincrement())
+  recebimentoId  Int                @map("recebimento_id")
+  itemPedidoId   Int                @map("item_pedido_id")
+  produtoId      Int                @map("produto_id")
+  quantidade     Decimal            @db.Decimal(12, 3)
+
+  recebimento    RecebimentoEntrada @relation(fields: [recebimentoId], references: [id], onDelete: Cascade)
+  itemPedido     ItemPedidoEntrada  @relation(fields: [itemPedidoId], references: [id], onDelete: Cascade)
+
+  @@unique([recebimentoId, itemPedidoId])
+  @@map("itens_recebimento_entrada")
 }
 
 // ----------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import { pedidosSaidaRouter } from './modules/pedidos-saida/pedidos-saida.routes
 import { movimentacoesRouter } from './modules/movimentacoes/movimentacoes.routes';
 import { estoqueRouter } from './modules/estoque/estoque.routes';
 import { reposicaoRouter } from './modules/reposicao/reposicao.routes';
+import { authRouter } from './modules/auth/auth.routes';
 
 export const app = express();
 
@@ -26,6 +27,7 @@ api.get('/health', async (_req, res) => {
   res.json({ ok: true });
 });
 
+api.use('/auth', authRouter);
 api.use('/produtos', produtosRouter);
 api.use('/fornecedores', fornecedoresRouter);
 api.use('/requisitantes', requisitantesRouter);
