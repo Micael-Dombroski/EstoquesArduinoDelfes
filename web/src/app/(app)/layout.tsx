@@ -1,21 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { useSessao } from "@/lib/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { autenticado } = useSessao();
+  const pathname = usePathname();
+  const { autenticado, usuario } = useSessao();
+
+  const rotaPermitidaSolicitante = pathname.startsWith("/saida") || pathname.startsWith("/produtos");
+  const bloqueadoPorPerfil = usuario?.perfil === "SOLICITANTE" && !rotaPermitidaSolicitante;
 
   useEffect(() => {
     if (!autenticado) {
       router.replace("/login");
+    } else if (bloqueadoPorPerfil) {
+      router.replace("/saida");
     }
-  }, [autenticado, router]);
+  }, [autenticado, bloqueadoPorPerfil, router]);
 
-  if (!autenticado) {
+  if (!autenticado || bloqueadoPorPerfil) {
     return null;
   }
 

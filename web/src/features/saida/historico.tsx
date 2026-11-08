@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { podeDesfazerRetirada, useSessao } from "@/lib/auth";
+import { podeBaixarRetirada, podeDesfazerRetirada, useSessao } from "@/lib/auth";
 import { mensagemDeErro } from "@/lib/errors";
 import { dataLocal, fmt, fmtDataHora } from "@/lib/format";
 import {
@@ -48,21 +48,18 @@ export function Historico() {
   const { data: produtos = [] } = useProdutos();
   const { data: requisitantes = [] } = useRequisitantes();
   const permiteDesfazer = podeDesfazerRetirada(usuario?.perfil);
+  const permiteDarBaixa = podeBaixarRetirada(usuario?.perfil);
 
-  const [hoje, setHoje] = useState("");
-  const [form, setForm] = useState<FiltrosHistorico>({ de: "", ate: "", produtoId: "", requisitanteId: "" });
-  const [aplicados, setAplicados] = useState<FiltrosHistorico | null>(null);
+  const [hoje] = useState(() => (typeof window !== "undefined" ? dataLocal() : ""));
+  const [form, setForm] = useState<FiltrosHistorico>(() =>
+    typeof window !== "undefined" ? padrao() : { de: "", ate: "", produtoId: "", requisitanteId: "" },
+  );
+  const [aplicados, setAplicados] = useState<FiltrosHistorico | null>(() =>
+    typeof window !== "undefined" ? padrao() : null,
+  );
   const [pagina, setPagina] = useState(1);
   const [limite, setLimite] = useState(10);
   const [confirmando, setConfirmando] = useState<number | null>(null);
-
-  // Datas só no cliente: evita diferença de fuso entre servidor e navegador.
-  useEffect(() => {
-    const p = padrao();
-    setHoje(p.ate);
-    setForm(p);
-    setAplicados(p);
-  }, []);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useHistoricoSaidas(aplicados, pagina, limite);
 
@@ -74,14 +71,13 @@ export function Historico() {
   const retiradas = data?.itens ?? [];
   const total = data?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / limite));
-
-  // Se a lista encolheu, não fica numa página inexistente.
-  useEffect(() => {
-    if (data && pagina > totalPaginas) setPagina(totalPaginas);
-  }, [data, pagina, totalPaginas]);
+  const paginaEfetiva = data ? Math.min(pagina, totalPaginas) : pagina;
 
   // Retiradas cuja listagem veio sem itens: busca o detalhe de cada uma.
-  const idsSemItens = retiradas.filter((r) => r.itens === undefined).map((r) => r.id);
+  const idsSemItens = useMemo(
+    () => ( data?.itens ?? []).filter((r) => r.itens === undefined).map((r) => r.id),
+    [data?.itens],
+  );
   const detalhes = useDetalhesRetiradas(idsSemItens);
   const detalhePorId = useMemo(() => {
     const m = new Map<number, { retirada?: Retirada; carregando: boolean; erro: boolean }>();
@@ -89,8 +85,7 @@ export function Historico() {
       m.set(id, { retirada: detalhes[i]?.data, carregando: !!detalhes[i]?.isLoading, erro: !!detalhes[i]?.isError }),
     );
     return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsSemItens.join(","), detalhes.map((d) => d.dataUpdatedAt + String(d.status)).join(",")]);
+  }, [idsSemItens, detalhes]);
 
   const falhouItens = detalhes.some((d) => d.isError);
   useEffect(() => {
@@ -100,13 +95,22 @@ export function Historico() {
   const produtoPorId = useMemo(() => new Map(produtos.map((p) => [p.id, p])), [produtos]);
   const nomePorId = useMemo(() => new Map(requisitantes.map((r) => [r.id, r.nome])), [requisitantes]);
 
-  // Desfazer = cancelar o pedido; a API estorna os itens e o saldo volta ao estoque.
+  const baixar = useMutation({
+    mutationFn: (id: number) => api(`/pedidos-saida/${id}/baixar`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Baixa realizada no estoque com sucesso!");
+    },
+    onError: (e) => toast.error(mensagemDeErro(e)),
+  });
+
+  // Desfazer = cancelar o pedido; a API estorna os itens (se já concluído) e o saldo volta ao estoque.
   const desfazer = useMutation({
     mutationFn: (id: number) => api(`/pedidos-saida/${id}/cancelar`, { method: "POST" }),
     onSuccess: () => {
       setConfirmando(null);
       qc.invalidateQueries(); // histórico, saldos e reposição
-      toast.success("Retirada desfeita. Os itens voltaram ao estoque.");
+      toast.success("Registro atualizado com sucesso.");
     },
     onError: (e) => toast.error(mensagemDeErro(e)),
   });
@@ -129,15 +133,15 @@ export function Historico() {
     setAplicados(p);
   }
 
-  const inicio = total === 0 ? 0 : (pagina - 1) * limite + 1;
-  const fim = Math.min(pagina * limite, total);
+  const inicio = total === 0 ? 0 : (paginaEfetiva - 1) * limite + 1;
+  const fim = Math.min(paginaEfetiva * limite, total);
   const filtroProduto = aplicados?.produtoId ? Number(aplicados.produtoId) : null;
 
   return (
     <section aria-labelledby="titulo-historico" className="mt-12 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 id="titulo-historico" className="text-xl font-semibold">
-          Histórico de retiradas
+          Histórico de solicitações e retiradas
         </h2>
         <button
           type="button"
@@ -201,7 +205,7 @@ export function Historico() {
         </div>
         <div>
           <label htmlFor="h-func" className="mb-1 block text-sm font-medium">
-            Funcionário
+            Destinatário (funcionário)
           </label>
           <select
             id="h-func"
@@ -209,7 +213,7 @@ export function Historico() {
             onChange={(e) => setForm((f) => ({ ...f, requisitanteId: e.target.value }))}
             className={campo}
           >
-            <option value="">Todos os funcionários</option>
+            <option value="">Todos os destinatários</option>
             {requisitantes.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.nome}
@@ -250,6 +254,7 @@ export function Historico() {
         >
           {retiradas.map((r) => {
             const desfeita = r.status === "CANCELADO";
+            const pendente = r.status === "PENDENTE";
             const det = detalhePorId.get(r.id);
             const itens = r.itens ?? det?.retirada?.itens;
             const estaConfirmando = confirmando === r.id;
@@ -258,19 +263,33 @@ export function Historico() {
             return (
               <li key={r.id} className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">
-                    {r.requisitante?.nome ?? nomePorId.get(r.requisitanteId) ?? `Funcionário ${r.requisitanteId}`}
-                  </p>
+                  <div>
+                    <p className="font-medium">
+                      Destinatário:{" "}
+                      {r.requisitante?.nome ?? nomePorId.get(r.requisitanteId) ?? `Funcionário ${r.requisitanteId}`}
+                      {r.requisitante?.setor && (
+                        <span className="font-normal text-slate-500 dark:text-slate-400">
+                          {" "}
+                          ({r.requisitante.setor})
+                        </span>
+                      )}
+                    </p>
+                    {r.observacao && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Destino/Obs.: {r.observacao}</p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                     <time dateTime={r.dataPedido}>{fmtDataHora(r.dataPedido)}</time>
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                         desfeita
                           ? "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          : pendente
+                            ? "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                       }`}
                     >
-                      {desfeita ? "Desfeita" : "Concluída"}
+                      {desfeita ? "Cancelada / Desfeita" : pendente ? "Aguardando baixa" : "Baixa concluída"}
                     </span>
                   </div>
                 </div>
@@ -286,16 +305,35 @@ export function Historico() {
                       const p = produtoPorId.get(i.produtoId);
                       const nome = i.produto?.nome ?? p?.nome ?? `Produto ${i.produtoId}`;
                       const un = i.produto?.unidade ?? p?.unidade ?? "";
+                      const solicitado = Number(i.quantidade);
+                      const separado = i.quantidadeSeparada !== undefined ? Number(i.quantidadeSeparada) : solicitado;
+                      const faltou = Math.max(0, Number((solicitado - separado).toFixed(3)));
                       return (
                         <li
                           key={i.id}
-                          className={`flex justify-between gap-4 ${
+                          className={`flex flex-wrap items-center justify-between gap-2 ${
                             i.produtoId === filtroProduto ? "font-semibold text-slate-900 dark:text-slate-100" : ""
                           }`}
                         >
-                          <span>{nome}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{nome}</span>
+                            {faltou > 0 && i.situacaoFaltante && (
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                  i.situacaoFaltante === "A_CAMINHO"
+                                    ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-300"
+                                    : "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
+                                }`}
+                              >
+                                Faltou {fmt(faltou)} {un} ·{" "}
+                                {i.situacaoFaltante === "A_CAMINHO" ? "Já a caminho" : "Necessita compra"}
+                              </span>
+                            )}
+                          </div>
                           <span className="whitespace-nowrap tabular-nums">
-                            {fmt(i.quantidade)} {un}
+                            {!pendente && i.quantidadeSeparada !== undefined && separado < solicitado
+                              ? `${fmt(separado)} de ${fmt(solicitado)} ${un} (separado)`
+                              : `${fmt(i.quantidade)} ${un}`}
                           </span>
                         </li>
                       );
@@ -309,8 +347,31 @@ export function Historico() {
                   <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                 )}
 
-                {/* Desfazer: pede confirmação antes de devolver ao estoque (apenas Almoxarifado e Supervisor) */}
+                {/* Ações para solicitações PENDENTES (Almoxarifado e Supervisor) */}
+                {pendente && permiteDarBaixa && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={baixar.isPending}
+                      onClick={() => baixar.mutate(r.id)}
+                      className="h-10 rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                    >
+                      {baixar.isPending && baixar.variables === r.id ? "Dando baixa..." : "Dar baixa no estoque"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={desfazer.isPending}
+                      onClick={() => desfazer.mutate(r.id)}
+                      className="h-10 rounded-lg border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                      Cancelar solicitação
+                    </button>
+                  </div>
+                )}
+
+                {/* Desfazer retirada CONCLUÍDA (apenas Almoxarifado e Supervisor) */}
                 {!desfeita &&
+                  !pendente &&
                   permiteDesfazer &&
                   (estaConfirmando ? (
                     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
@@ -375,18 +436,18 @@ export function Historico() {
             <button
               type="button"
               onClick={() => setPagina((p) => Math.max(1, p - 1))}
-              disabled={pagina <= 1 || isFetching}
+              disabled={paginaEfetiva <= 1 || isFetching}
               className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Anterior
             </button>
             <span className="tabular-nums">
-              Página {pagina} de {totalPaginas}
+              Página {paginaEfetiva} de {totalPaginas}
             </span>
             <button
               type="button"
               onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-              disabled={pagina >= totalPaginas || isFetching}
+              disabled={paginaEfetiva >= totalPaginas || isFetching}
               className="h-11 rounded-lg border border-slate-300 bg-white px-4 font-medium hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Próxima

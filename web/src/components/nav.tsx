@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTema } from "@/app/providers";
-import { ROTULO_PERFIL, podeSolicitarCompra, podeVerFornecedores, useSessao } from "@/lib/auth";
-import { usePedidosEntrada, useRecebimentos } from "@/lib/hooks";
+import { ROTULO_PERFIL, podeBaixarRetirada, podeSolicitarCompra, podeVerFornecedores, useSessao } from "@/lib/auth";
+import { usePedidosEntrada, useRecebimentos, useSaidasPendentes } from "@/lib/hooks";
 
 const LINKS = [
-  { href: "/saida", rotulo: "Retirar material", destaque: true, apenasCompras: false },
+  { href: "/saida", rotulo: "Retirar material", destaque: true, apenasCompras: false, badgeSaida: true },
   { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true },
-  { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: false, badgeRascunho: true },
+  { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: true, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },
     { href: "/fornecedores", rotulo: "Fornecedores", apenasCompras: false, ocultoSolicitante: true },
@@ -40,8 +40,11 @@ export function Nav() {
   const router = useRouter();
   const { tema, definirTema, alternarTema } = useTema();
   const { usuario, limparSessao } = useSessao();
-  const { data: rascunhos = [] } = usePedidosEntrada("RASCUNHO");
-  const { data: pendentesNf = [] } = useRecebimentos("AGUARDANDO_NF");
+  const temAcessoCompras = podeSolicitarCompra(usuario?.perfil);
+  const temAcessoBaixaSaida = podeBaixarRetirada(usuario?.perfil);
+  const { data: rascunhos = [] } = usePedidosEntrada("RASCUNHO", temAcessoCompras);
+  const { data: pendentesNf = [] } = useRecebimentos("AGUARDANDO_NF", temAcessoCompras);
+  const { data: saidasPendentes = [] } = useSaidasPendentes(temAcessoBaixaSaida);
 
   const ativo = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
     const linksVisiveis = LINKS.filter(
@@ -50,8 +53,9 @@ export function Nav() {
       (!l.ocultoSolicitante || podeVerFornecedores(usuario?.perfil)),
   );
   const infoPerfil = usuario ? ROTULO_PERFIL[usuario.perfil] : null;
-  const qtdRascunhos = rascunhos.length;
-  const qtdPendentesNf = pendentesNf.length;
+  const qtdRascunhos = temAcessoCompras ? rascunhos.length : 0;
+  const qtdPendentesNf = temAcessoCompras ? pendentesNf.length : 0;
+  const qtdSaidasPendentes = temAcessoBaixaSaida ? saidasPendentes.length : 0;
 
   function sair() {
     limparSessao();
@@ -75,7 +79,12 @@ export function Nav() {
                   : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             }`}
           >
-            <span>{l.rotulo}</span>
+            <span>{l.rotulo === "Retirar material" && usuario?.perfil === "SOLICITANTE" ? "Solicitar material" : l.rotulo}</span>
+            {l.badgeSaida && qtdSaidasPendentes > 0 && (
+              <span className="rounded-full bg-white/95 px-2 py-0.5 text-xs font-bold text-blue-800">
+                {qtdSaidasPendentes}
+              </span>
+            )}
             {l.badgeRascunho && qtdRascunhos > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
                 {qtdRascunhos}

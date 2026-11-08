@@ -39,6 +39,7 @@ enum StatusPedidoEntrada {
 }
 
 enum StatusPedidoSaida {
+  PENDENTE
   CONCLUIDO
   CANCELADO
 
@@ -278,14 +279,17 @@ model PedidoSaida {
 }
 
 model ItemPedidoSaida {
-  id           Int     @id @default(autoincrement())
-  pedidoId     Int     @map("pedido_id")
-  produtoId    Int     @map("produto_id")
-  quantidade   Decimal @db.Decimal(12, 3)
+  id                 Int      @id @default(autoincrement())
+  pedidoId           Int      @map("pedido_id")
+  produtoId          Int      @map("produto_id")
+  quantidade         Decimal  @db.Decimal(12, 3)
+  separado           Boolean  @default(false)
+  quantidadeSeparada Decimal  @default(0) @map("quantidade_separada") @db.Decimal(12, 3)
+  situacaoFaltante   String?  @map("situacao_faltante") @db.VarChar(30)
 
-  pedido       PedidoSaida   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  produto      Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
-  movimentacao Movimentacao?
+  pedido             PedidoSaida   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto            Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  movimentacao       Movimentacao?
 
   @@unique([pedidoId, produtoId])
   @@index([produtoId])

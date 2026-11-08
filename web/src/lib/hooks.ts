@@ -34,9 +34,10 @@ export const useSugestoes = () =>
     staleTime: 0,
   });
 
-export const usePedidosEntrada = (status?: StatusPedidoEntrada) =>
+export const usePedidosEntrada = (status?: StatusPedidoEntrada, habilitado = true) =>
   useQuery({
     queryKey: ["pedidos-entrada", status ?? "TODOS"],
+    enabled: habilitado,
     queryFn: async () => {
       const q = new URLSearchParams({ limite: "50" });
       if (status) q.set("status", status);
@@ -45,13 +46,25 @@ export const usePedidosEntrada = (status?: StatusPedidoEntrada) =>
     staleTime: 10_000,
   });
 
-export const useRecebimentos = (status?: StatusRecebimento) =>
+export const useRecebimentos = (status?: StatusRecebimento, habilitado = true) =>
   useQuery({
     queryKey: ["recebimentos-entrada", status ?? "TODOS"],
+    enabled: habilitado,
     queryFn: async () => {
       const q = new URLSearchParams();
       if (status) q.set("status", status);
       return unwrapList<RecebimentoEntrada>(await api(`/pedidos-entrada/recebimentos?${q}`));
+    },
+    staleTime: 5_000,
+  });
+
+export const useSaidasPendentes = (habilitado = true) =>
+  useQuery({
+    queryKey: ["saidas-pendentes"],
+    enabled: habilitado,
+    queryFn: async () => {
+      const q = new URLSearchParams({ status: "PENDENTE", limite: "50" });
+      return unwrapList<Retirada>(await api(`/pedidos-saida?${q}`));
     },
     staleTime: 5_000,
   });
