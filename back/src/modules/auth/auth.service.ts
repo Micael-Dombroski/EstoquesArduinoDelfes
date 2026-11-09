@@ -67,7 +67,7 @@ let inicializado = false;
  * Garante que a tabela `usuarios` e os 4 perfis padrão de demonstração existam
  * mesmo se o container do banco tiver sido iniciado antes da migração de usuários.
  */
-async function garantirUsuariosPadrao() {
+export async function garantirUsuariosPadrao() {
   if (inicializado) return;
   try {
     const total = await prisma.usuario.count();

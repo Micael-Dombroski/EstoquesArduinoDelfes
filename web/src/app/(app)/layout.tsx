@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { useSessao } from "@/lib/auth";
+import { podeGerenciarUsuarios, useSessao } from "@/lib/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -11,15 +11,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { autenticado, usuario } = useSessao();
 
   const rotaPermitidaSolicitante = pathname.startsWith("/saida") || pathname.startsWith("/produtos");
-  const bloqueadoPorPerfil = usuario?.perfil === "SOLICITANTE" && !rotaPermitidaSolicitante;
+  const bloqueadoSolicitante = usuario?.perfil === "SOLICITANTE" && !rotaPermitidaSolicitante;
+  const bloqueadoSupervisor = pathname.startsWith("/usuarios") && !podeGerenciarUsuarios(usuario?.perfil);
+  const bloqueadoPorPerfil = bloqueadoSolicitante || bloqueadoSupervisor;
 
   useEffect(() => {
     if (!autenticado) {
       router.replace("/login");
-    } else if (bloqueadoPorPerfil) {
+    } else if (bloqueadoSolicitante) {
       router.replace("/saida");
+    } else if (bloqueadoSupervisor) {
+      router.replace("/");
     }
-  }, [autenticado, bloqueadoPorPerfil, router]);
+  }, [autenticado, bloqueadoSolicitante, bloqueadoSupervisor, router]);
 
   if (!autenticado || bloqueadoPorPerfil) {
     return null;

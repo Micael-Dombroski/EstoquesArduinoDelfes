@@ -93,6 +93,14 @@ export type Usuario = {
   email: string;
   perfil: PerfilUsuario;
   requisitanteId: number | null;
+  ativo?: boolean;
+  criadoEm?: string;
+  requisitante?: {
+    id: number;
+    nome: string;
+    setor?: string | null;
+    ativo?: boolean;
+  } | null;
 };
 
 // ----- Solicitações e Pedidos de Compra (GET /pedidos-entrada) -----

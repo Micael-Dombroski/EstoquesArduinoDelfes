@@ -9,6 +9,7 @@ import type {
   Retirada,
   StatusPedidoEntrada,
   StatusRecebimento,
+  Usuario,
 } from "./types";
 
 // O catálogo é carregado uma vez e filtrado no cliente (busca instantânea).
@@ -67,6 +68,14 @@ export const useSaidasPendentes = (habilitado = true) =>
       return unwrapList<Retirada>(await api(`/pedidos-saida?${q}`));
     },
     staleTime: 5_000,
+  });
+
+export const useUsuarios = (habilitado = true) =>
+  useQuery({
+    queryKey: ["usuarios"],
+    enabled: habilitado,
+    queryFn: async () => unwrapList<Usuario>(await api("/usuarios")),
+    staleTime: 10_000,
   });
 
 // ----- Histórico de retiradas -----
