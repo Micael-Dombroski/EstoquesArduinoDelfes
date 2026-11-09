@@ -1,206 +1,137 @@
 # DOCUMENTAÇÃO DE USO DE IA
 
-**Projeto:** Sistema de Controle de Estoque
-**Disciplina:** Laboratório de Programação (Prof. Willen Leolatto Carneiro): UNIFACVEST
-**Integrantes:** **Micael** e **Kevin**
-**IA utilizada:** Claude (Anthropic), via interface de chat
-**Repositório:** **https://github.com/Micael-Dombroski/EstoquesArduinoDelfes**
+**Projeto:** Sistema de Controle de Estoque e Reposição Inteligente  
+**Disciplina:** Laboratório de Programação II (Prof. Willen Leolatto Carneiro) — UNIFACVEST  
+**Integrantes:** **Micael** e **Kevin**  
+**IAs utilizadas:** Claude (Anthropic) e Antigravity (Google DeepMind)  
+**Repositório:** [https://github.com/Micael-Dombroski/EstoquesArduinoDelfes](https://github.com/Micael-Dombroski/EstoquesArduinoDelfes)
+
 ---
 
 ## 1. Como a IA foi utilizada
 
-A IA atuou como assistente de engenharia em quatro frentes: **análise de requisitos e modelagem**, **configuração de infraestrutura** (Docker, variáveis de ambiente, nodemon), **modelagem do banco de dados** (Prisma e PostgreSQL) e **orientação de fluxo de trabalho** (Git e convenção de commits).
+A Inteligência Artificial atuou como **assistente de engenharia de software e pair programmer** ao longo de todo o ciclo de desenvolvimento, apoiando em cinco frentes principais:
 
-O grupo atuou como **revisor do código gerado**: nenhuma sugestão foi aceita sem leitura, execução local e conferência com as diretrizes da disciplina. Quando a IA errou ou não considerou o contexto real do projeto, o erro foi registrado na coluna *Refinamento* de cada entrada.
+1. **Análise de requisitos e modelagem de domínio:** crítica ao levantamento inicial de entidades feito pelo grupo a partir da operação real de estoque (inspirada no fluxo do sistema Symprod) e definição do diferencial de reposição inteligente.
+2. **Infraestrutura e banco de dados:** configuração do PostgreSQL 16 via Docker Compose, variáveis de ambiente (`.env`), migrações com Prisma 7 e implementação de regras de integridade no PostgreSQL (`extras.sql` com triggers, `CHECK` constraints, índices parciais/GIN/BRIN e views).
+3. **Arquitetura e implementação do Backend (API REST):** estruturação modular em camadas (`routes` → `controller` → `service` → `schemas`) com Node.js 22+, Express 5, TypeScript, validação com `zod` e transações atômicas via `prisma.$transaction`.
+4. **Desenvolvimento do Frontend (Next.js App Router):** construção das interfaces operacionais em React/Next.js com Tailwind CSS, `shadcn/ui` e `@tanstack/react-query`, incluindo suporte a tema claro/escuro, filtros avançados e feedback imediato.
+5. **Evolução de regras de negócio complexas e fluxo Git:** implementação de controle de acesso baseado em perfis (RBAC), recebimento em duas etapas (Ordem de Compra + Nota Fiscal), separação detalhada de materiais com classificação de faltantes, unificação de telas, resolução de conflitos de merge e organização de commits semânticos.
 
-O domínio do sistema (estoque, atualmente controlado no sistema Symprod) e o levantamento inicial das entidades foram feitos pelo grupo. A IA foi usada para criticar e refinar esse levantamento, não para inventá-lo.
+O grupo atuou rigorosamente como **revisor crítico (*code reviewer*)**: nenhuma sugestão ou código gerado foi aceito sem leitura linha a linha, compilação (`tsc --noEmit` / `eslint`), execução local e validação contra as diretrizes da disciplina.
+
+---
 
 ## 2. Critérios de aceitação do código gerado
 
-Um trecho gerado pela IA só entra no repositório se atender a **todos** os critérios abaixo:
+Um trecho de código gerado pela IA só ingressou no repositório após atender a **todos** os critérios abaixo:
 
-1. **Executa localmente** com `docker compose up -d` e `npm run dev`, sem passos manuais além dos documentados no `README.md`.
-2. **Respeita as versões obrigatórias:** Node.js entre 22.x e 24.x, PostgreSQL entre 15 e 16.
-3. **Sem credenciais no Git:** senhas e URLs de conexão ficam no `.env` (ignorado); apenas o `.env.example` é versionado.
-4. **Integridade garantida no banco**, e não apenas na API: chaves estrangeiras, `CHECK` e restrições de unicidade.
-5. **Compreendido pelo grupo:** nenhum trecho é aceito se algum integrante não consegue explicá-lo na apresentação.
-6. **Separação de responsabilidades:** rotas, controllers e acesso a dados em camadas distintas.
-7. **Tratamento de erros** com `try/catch` e códigos HTTP corretos.
-8. **Testado manualmente** (Thunder Client ou equivalente) antes do commit.
-9. **Commit semântico** (`feat`, `fix`, `docs`, `chore`, `build`) com mensagem clara.
-
-## 3. Registro das interações
-
-### 3.1 Configuração do nodemon no backend
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Configurar o `nodemon` para facilitar o desenvolvimento local (requisito de stack das diretrizes). | "como fazer isso no node.js? nodemon deve ser configurado para facilitar o desenvolvimento local" | A resposta inicial funcionou como base: instalação como dependência de desenvolvimento, scripts `start` e `dev` e um `nodemon.json`. Mais tarde, ao adotar um único `.env` na raiz, o `exec` precisou ser ajustado para `node --env-file=../.env src/index.js`. **[PREENCHER: confirmar se o `npm run dev` subiu a API sem erro]** | `nodemon` como `devDependency` (e não global) para que todos que clonarem o projeto usem a mesma versão. Configuração em `nodemon.json` para observar só `src`. Uso do `--env-file` nativo do Node 22+, evitando uma dependência extra. |
-
-### 3.2 Levantamento de requisitos e definição do diferencial
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Validar o tema (sistema de estoque) e o esboço de entidades feito pelo grupo, e definir um diferencial para o projeto. | "Atue como um Engenheiro de Software Sênior e expert em user experience. Qual sua opinião? o sistema usado no estoque é o symprod, fiz um levantamento de entidades que devem ter no sistema e anexei um trabalho com requisitos? acha que fica bom usar isso? qual diferencial você colocaria no projeto que pode auxiliar no dia a dia usando esse projeto?"<br><br>Anexos: foto do esboço manuscrito de entidades e PDF das diretrizes. | A IA apontou ajustes no modelo do esboço: (1) quantidade não deve ser campo fixo do produto, e sim derivada de movimentações; (2) ponto de reposição pertence ao produto; (3) "tempo no estoque" é um valor calculado; (4) pedidos precisam de cabeçalho e itens; (5) Fornecedor × Produto é N:N e o tempo de entrega pertence a essa relação; (6) marca pode ser texto no MVP. Também pediu confirmação de um campo ilegível ("$ mín"). **[PREENCHER: quais ajustes foram aceitos, quais foram rejeitados e por quê; o que significava "$ mín"]** | Aprovado o uso de **movimentação como fonte da verdade do saldo** (histórico, auditoria e base para calcular consumo). Diferencial escolhido: **reposição inteligente** (consumo médio × prazo de entrega + margem), com a tela "O que comprar hoje". Escopo limitado a um núcleo (cadastros, entrada, saída, saldo) mais **um único** diferencial, por causa do prazo de 09/11/2026. |
-
-### 3.3 Docker Compose e variáveis de ambiente
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Provisionar o PostgreSQL via Docker Compose (requisito obrigatório) e decidir onde guardar a senha. | "como defino no docker-compose o uso do postgres? o password eu guardo no .env ou não precisa?"<br><br>"prefiro um unico .env" | A primeira proposta usava dois arquivos `.env` (um na raiz para o Docker e outro em `back` para o Prisma). O grupo preferiu um só, e a IA reorganizou: `.env` único na raiz, lido pelo Compose automaticamente, pelo Node via `--env-file=../.env` e pelo Prisma via `dotenv-cli`.<br><br>Problemas na execução: o `docker compose up` falhou com erro de conexão com a API do Docker (`dockerDesktopLinuxEngine`) porque o **Docker Desktop não estava aberto**; o comando também foi rodado na pasta errada (`back\src`, em vez da raiz). **[PREENCHER: confirmar que o container ficou `healthy`]** | Imagem `postgres:16-alpine` (dentro do limite 15–16 exigido; evitado `latest`). Senha no `.env` fora do Git, com `.env.example` versionado. Volume nomeado para persistência. `healthcheck` para saber quando o banco aceita conexões. Um único `.env` para evitar divergência de credenciais. |
-
-### 3.4 Modelagem do banco de dados (Prisma e PostgreSQL)
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Criar o `schema.prisma` com as entidades e relacionamentos definidos, otimizando o banco com índices e consultas para a reposição inteligente. | "Você é um expert em prisma e banco de dados postgres, monte os schemas para as tabelas do projeto, tendo em vista os relacionamentos e especificacões idealizadas anteriormente, também use o conhecimento em postgres a seu favor para otimizar o banco pensando até em consultas inteligentes e indices se necessário." | **Não funcionou de primeira.** O `npm run migrate` falhou com o erro `P1012`: o projeto instalou o **Prisma 7.10.1**, que não aceita `url` dentro do `datasource` do `schema.prisma`, e a IA havia gerado o schema no formato do Prisma 6. A IA ofereceu duas saídas: fixar o Prisma na versão 6, ou migrar para o 7 (config em `prisma.config.ts`, novo generator e adapter `pg`).<br><br>**[PREENCHER: qual opção o grupo escolheu e por quê; se o migrate passou; se o `extras.sql` foi aplicado sem erro]** | Decisões aprovadas após revisão:<br>• `Movimentacao` imutável (correção por `ESTORNO`).<br>• `saldo_atual` mantido por **trigger**, com `CHECK (saldo_atual >= 0)`, garantindo consistência mesmo com saídas simultâneas.<br>• Prazo de entrega na relação N:N `ProdutoFornecedor`.<br>• Índice composto `(produto_id, tipo, data)` para consumo médio; GIN trigram para autocompletar; índice parcial para produtos abaixo do ponto; BRIN para a tabela de movimentações.<br>• Views `vw_estoque_situacao` e `vw_sugestao_reposicao` para o diferencial.<br>• `Decimal` para quantidades e valores; `Timestamptz` para datas.<br>Recursos que o Prisma não modela (triggers, views, índices parciais) ficam em `prisma/extras.sql`, aplicado por uma migração própria. |
-
-### 3.5 Estrutura de pastas, Git e convenção de commits
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Organizar o repositório em `front` e `back`, definir o padrão de commits e conduzir o fluxo de Git pelo VS Code, sem usar o terminal. | "criei uma pasta para front e uma para back, na back eu boto o node modules né?"<br><br>"o commit para indicar que iniciei a estrutura das pastas e criei o docker fica como feature?"<br><br>"e como faco pelo vscode? não quero usar o terminal"<br><br>"fiz um commit errado mas não subi, como corrijo?"<br><br>"e deixar a senha no .env fica como feature?"<br><br>"como faco merge agora na main?" | A IA corrigiu a premissa do grupo: estrutura de pastas e Docker são **configuração**, não funcionalidade, então o prefixo adequado é `chore` ou `build`, e não `feat`. Para o schema do banco, o `feat(db)` é adequado.<br><br>Problema na execução: o `package.json`, o `package-lock.json` e a `node_modules` foram criados dentro de `back/src`, quando deveriam estar em `back`. Isso causou o erro `ENOENT` no `npm run migrate`. A solução foi mover os arquivos para a pasta correta. **[PREENCHER: confirmar que a estrutura foi corrigida]** | Padrão de commits: `chore`/`build` para infraestrutura, `feat(db)` para o modelo de dados, `docs` para documentação. Commits pequenos, um assunto por commit, para que o histórico mostre a evolução do trabalho. `node_modules` e `.env` ficam no `.gitignore`. |
-
-### 3.6 Documentação de arquitetura e da IA
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Registrar as decisões de banco de dados em `docs/arquitetura.md` e montar este arquivo conforme o modelo da disciplina. | "a criacao do schema e do banco se encaixa como feature? como coloco explico na arquitetura as decisões de bd?"<br><br>"me ajude a criar o arquivo DOCUMENTACAO_IA.md baseado na exigência do trabalho" | A IA sugeriu o formato *decisão → motivo → alternativa descartada → consequência* e um diagrama ER em Mermaid. Este documento foi gerado a partir do histórico real de conversas e revisado pelo grupo. **[PREENCHER: o que o grupo alterou ou corrigiu neste texto]** | Documentação em Markdown dentro do repositório, versionada junto com o código. Diagrama em Mermaid, que o GitHub renderiza sem ferramentas extras. |
-
-### 3.7 Estrutura e Arquitetura do Front-end (Next.js + App Router)
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Criar a interface priorizando velocidade e zero treinamento (Retirar material, Hoje/Comprar, Produtos). | "Crie a interface com node.js e Next.js App Router para o estoque com foco em agilidade de almoxarifado..." | **Conflito de Porta e CORS:** O Next dev roda na porta 3000 por padrão, conflitando com a API Express. Ajustado o script para `next dev -p 3001`. Adicionado `rewrites` no `next.config.ts` para redirecionar `/api/*` à API backend.<br>**Roteamento:** Removido `src/app/page.tsx` gerado automaticamente pelo template para evitar conflito de rota com `src/app/(app)/page.tsx`. | • Next.js como interface client-heavy sem duplicar lógica de backend.<br>• **TanStack Query** para cache e invalidação inteligente.<br>• **Proxy local (`rewrites`)** evitando problemas de CORS em desenvolvimento.<br>• Leitor USB de código de barras integrado ao campo de busca focado. |
-
-### 3.8 Tratamento de Erros e Integração de APIs
-
-| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
-|---|---|---|---|
-| Tratar respostas da API (`SALDO_INSUFICIENTE`, `EXCEDE_PEDIDO`) e estorno rápido via toast. | "Tratar os retornos da API em português e permitir Desfazer movimentação com Toast." | **Formatos de API:** Tipos isolados em `lib/types.ts`. Implementado `unwrapList` para tratar arrays puros ou envelopados (`{ data: [...] }`). Tratamento do erro 422 destacando itens sem saldo sem limpar o carrinho. | • `sonner` com botão "Desfazer" acionando `POST /pedidos-saida/:id/cancelar`.<br>• Centralização de mapeamento de códigos de erro em `lib/errors.ts`. |
+1. **Execução local reproduzível:** sobe integralmente com `docker compose up -d`, `npx prisma migrate deploy`, `npm run seed` e `npm run dev`.
+2. **Conformidade estrita de versões:** Node.js entre `22.x` e `24.x` e PostgreSQL entre `15` e `16` (`postgres:16-alpine`).
+3. **Segurança e sigilo de credenciais:** senhas e URLs de banco ficam exclusivamente em arquivos `.env` ignorados pelo Git; apenas `.env.example` com valores fictícios são versionados.
+4. **Integridade garantida pelo banco de dados:** chaves estrangeiras (`RESTRICT`), `CHECK (saldo_atual >= 0)`, imutabilidade do livro-razão (`movimentacoes`) e atualização de saldo exclusivamente via trigger no PostgreSQL.
+5. **A API nunca sobrescreve o saldo diretamente:** `saldoAtual` e `saldoApos` são calculados pelo banco; tentativas de enviá-los no payload retornam `400 VALIDATION_ERROR`.
+6. **Separação de responsabilidades:** divisão clara entre `routes`, `controller`, `service` e `schemas` no backend, e isolamento por domínio em `src/features/` no frontend.
+7. **Tratamento padronizado de erros:** respostas consistentes (`error.code`, `error.message`, `error.details`) com status HTTP semânticos (`400`, `401`, `403`, `404`, `409`, `422`).
+8. **Compreensão total pela equipe:** nenhum trecho foi mantido sem que ambos os integrantes soubessem explicar seu funcionamento para a arguição final.
+9. **Versionamento limpo:** uso de Conventional Commits (`feat`, `fix`, `docs`, `chore`, `build`) refletindo a evolução real do software.
 
 ---
 
-## 4. Modelo para novas entradas
+## 3. Registro das interações por funcionalidade
 
-Copie a tabela abaixo para cada nova funcionalidade desenvolvida com a IA (rotas e controllers, tela de saída, tela "O que comprar hoje", etc.).
+Abaixo estão documentadas as interações com a IA seguindo o modelo exigido pelas diretrizes da disciplina.
 
-### 3.X Nome da funcionalidade
+### 3.1 Configuração do ambiente: Docker Compose, `.env` e `nodemon`
 
 | Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Qual funcionalidade ou bug estava sendo resolvido. | Texto exato enviado à IA, com contexto e instruções. | Funcionou de primeira? O que a IA precisou corrigir? | Por que o código foi aprovado (segurança, performance, padrão). |
+| Provisionar o PostgreSQL 16 via Docker Compose com persistência, isolar credenciais em `.env` e configurar o `nodemon` para desenvolvimento local no backend. | `"como defino no docker-compose o uso do postgres? o password eu guardo no .env ou não precisa?"`<br><br>`"como fazer isso no node.js? nodemon deve ser configurado para facilitar o desenvolvimento local"`<br><br>`"crie o .env para uso do postgres no docker"` | Na primeira tentativa, o mapeamento de portas no `docker-compose.yml` estava invertido (`51214:51214` em vez de `${POSTGRES_PORT:-51214}:5432`), impedindo a conexão externa. Além disso, o volume `pgdata` havia sido inicializado com credenciais antigas, gerando erro `P1000: Authentication failed`. Foi necessário executar `docker compose down -v`, alinhar `.env` da raiz e `back/.env` e recriar o container até ficar `healthy`. | Uso da imagem `postgres:16-alpine` (dentro da faixa 15–16 exigida), volume nomeado `pgdata` e `healthcheck` com `pg_isready`. O `nodemon` foi instalado como `devDependency` executando `tsx src/server.ts`, garantindo recarregamento automático sem depender de pacotes globais. |
 
-## 5. Funcionalidades previstas (a registrar)
+### 3.2 Levantamento de requisitos e modelagem do domínio (`schema.prisma`)
 
-- [ ] API REST de produtos, fornecedores e requisitantes (CRUD)
-- [ ] Pedido de entrada (cabeçalho e itens) com recebimento
-- [ ] Pedido de saída com geração de movimentações
-- [ ] Tela "O que comprar hoje" (reposição inteligente)
-- [ ] Semáforo de estoque e itens parados
-- [ ] Frontend consumindo a API
-
-## 1. Como a IA foi utilizada
-
-- **IA utilizada:** Claude (Anthropic), em conversa de chat.
-- **Papel da IA:** assistente de arquitetura e geração de código (boilerplate, rotas, serviços, scripts).
-- **Papel do grupo:** definir o domínio e o escopo, revisar cada entrega como *code reviewers*, executar tudo localmente, reportar erros reais e decidir o que aprovar.
-- **Fluxo adotado:** (1) analisar o domínio e a modelagem, (2) definir a arquitetura da API antes de gerar código, (3) gerar o backend por módulos, (4) subir o ambiente e testar manualmente, (5) devolver cada erro encontrado à IA com a mensagem completa.
-- **Limite importante:** a IA **não executou nem compilou** o código do projeto (sem acesso à rede para instalar dependências). Ela só verificou erros de sintaxe. Todo o comportamento foi validado pelo grupo rodando o sistema (seção 3.7).
-
-## 2. Critérios de aceitação adotados para o código gerado
-
-Um trecho de código só foi aceito quando:
-
-1. **Roda localmente** com o fluxo: `docker compose up -d` → `prisma migrate` → `npm run dev`.
-2. **Respeita as versões exigidas:** Node 22.x a 24.x e PostgreSQL 16 (dentro da faixa 15–16).
-3. **A integridade é garantida pelo banco**, não só pela API (CHECKs, trigger de saldo, imutabilidade das movimentações).
-4. **A API nunca escreve o saldo:** `saldoAtual` e `saldoApos` só mudam pela trigger. Enviar esses campos no body retorna erro 400.
-5. **Erros seguem um formato único** (`error.code`, `error.message`, `error.details`) com status HTTP coerentes (400, 404, 409, 422).
-6. **Operações que geram movimentação são transacionais** (pedido, itens e movimentações entram juntos ou não entram).
-7. **O roteiro de testes manual passa** (seção 3.7), incluindo os casos de erro.
-8. **Segredos fora do Git:** `.env` no `.gitignore`; apenas `.env.example` com valores fictícios é versionado.
-9. **Cada decisão é compreendida e registrada** neste documento, e não apenas copiada.
-
-## 3. Registro por funcionalidade
-
-### 3.1 Ambiente: PostgreSQL no Docker e variáveis de ambiente
-
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Provisionar o PostgreSQL via Docker Compose, com credenciais em `.env` (requisito das diretrizes). | `crie o.env para uso do postgres no docker` | A IA gerou `.env` e `docker-compose.yml` iniciais (`postgres:16`, volume nomeado, `env_file`).<br>O compose final do grupo difere da sugestão: `postgres:16-alpine`, `container_name`, `healthcheck` e porta padrão `51214`.<br>Erros encontrados depois (ver seção 4): mapeamento de porta e credenciais do volume. | `postgres:16` fica dentro da faixa permitida (15–16).<br>Volume nomeado `pgdata` para persistência.<br>`docker-compose.yml` na **raiz** do repositório (como no modelo das diretrizes), com um `.env` na raiz (lido pelo Compose) e outro em `back/` (lido pela API e pelo Prisma).<br>`.env` no `.gitignore`; só os `.env.example` são versionados. |
+| Transformar o esboço inicial de entidades (baseado na rotina com o sistema Symprod) em um modelo relacional robusto e definir o diferencial do projeto. | `"Atue como um Engenheiro de Software Sênior e expert em user experience. Qual sua opinião? o sistema usado no estoque é o symprod, fiz um levantamento de entidades que devem ter no sistema e anexei um trabalho com requisitos? acha que fica bom usar isso? qual diferencial você colocaria no projeto que pode auxiliar no dia a dia usando esse projeto?"`<br><br>`"Você é um expert em prisma e banco de dados postgres, monte os schemas para as tabelas do projeto, tendo em vista os relacionamentos e especificações idealizadas anteriormente..."` | O `npm run migrate` inicial falhou com erro `P1012` porque o projeto instalou o **Prisma 7**, que mudou a configuração do datasource para `prisma.config.ts` e passou a exigir o driver adapter `@prisma/adapter-pg`, enquanto a IA havia gerado a sintaxe do Prisma 6. O grupo optou por manter o Prisma 7 e adaptar `prisma.config.ts` e `src/lib/prisma.ts`. Também foi esclarecido que o campo `"$ mín"` do rascunho manuscrito representava o `valorMinimoPedido` do fornecedor. | • **Saldo derivado de movimentações:** `saldo_atual` não é editado manualmente, garantindo trilha de auditoria.<br>• **Relação N:N `ProdutoFornecedor`:** prazo de entrega (`prazoEntregaDias`) e preço unitário pertencem ao vínculo produto-fornecedor.<br>• **Diferencial definido:** Reposição Inteligente (*"O que comprar hoje"*), cruzando consumo médio dos últimos 30 dias com o lead time do fornecedor. |
 
-### 3.2 Modelagem do domínio
+### 3.3 Regras de integridade no PostgreSQL (`extras.sql`: Triggers, Views e Índices)
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Transformar o desenho inicial das entidades em um modelo relacional correto (`schema.prisma`). | `[PREENCHER: prompts da conversa em que a análise do projeto e o schema.prisma foram gerados]`<br>Documento gerado nessa conversa: `analise-de-ia-sobre-projeto-com-sugestoes.pdf`. | `[PREENCHER: o que a IA errou ou o grupo mudou no schema]` | Quantidade **não** é campo fixo do produto: o saldo vem de uma tabela de **Movimentação** (histórico + auditoria).<br>Ponto de reposição fica no Produto; "tempo no estoque" é **derivado** (calculado na consulta, não armazenado).<br>Pedido tem **cabeçalho + itens** (entrada e saída).<br>Fornecedor × Produto é N:N (`ProdutoFornecedor`), e o prazo de entrega e o preço pertencem a essa relação.<br>Marca como texto no MVP; valor mínimo de compra no Fornecedor.<br>Pergunta em aberto: estoque de **local único** (assumido). |
+| Garantir que o saldo nunca fique negativo mesmo em retiradas simultâneas, bloquear edição do histórico de movimentações e criar as consultas de semáforo e reposição inteligente. | `"monte os triggers, checks, indices e views em SQL para garantir que o saldo nunca fique negativo, que movimentações sejam imutáveis (apenas estorno) e crie a view de sugestão de reposição"` | Como o `schema.prisma` não modela triggers, `CHECK` constraints nem views, a aplicação direta via `prisma migrate dev` sobrescrevia ou ignorava esses objetos. A solução foi isolar todo o SQL avançado em `back/prisma/migrations/20260413200926_extras/migration.sql` (e manter `back/prisma/extras.sql` como referência documentada). | • **Trigger `BEFORE INSERT` em `movimentacoes`:** executa `UPDATE produtos SET saldo_atual = saldo_atual + NEW.variacao`, travando a linha (`row-level lock`) e preenchendo `saldo_apos`.<br>• **Imutabilidade:** trigger que bloqueia `UPDATE` e `DELETE` em `movimentacoes`.<br>• **Views `vw_estoque_situacao` e `vw_sugestao_reposicao`:** concentram a matemática de consumo médio diário e ponto de reposição sugerido diretamente no banco.<br>• **Índices:** GIN trigram para busca textual rápida, BRIN para data de movimento e índice único parcial para fornecedor preferencial. |
 
-### 3.3 Regras no banco de dados (`extras.sql`)
+### 3.4 Arquitetura da API REST, TypeScript e Módulos do Backend
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Garantir saldo consistente e sem valores negativos, mesmo com duas saídas simultâneas; fornecer views para semáforo e reposição. | `[PREENCHER: prompt(s) em que o extras.sql foi gerado]` | `[PREENCHER]`<br>Aplicação: o conteúdo é colado como segunda migração (`--create-only --name extras`), porque o Prisma não modela triggers, views e índices parciais. | **Trigger** `BEFORE INSERT` em `movimentacoes` aplica a variação ao saldo; o `UPDATE` trava a linha do produto, serializando saídas concorrentes.<br>**CHECKs** (saldo, quantidades e prazos não negativos; sinal coerente com o tipo da movimentação; ESTORNO sempre aponta para a original).<br>**Livro-razão imutável:** `UPDATE`/`DELETE` em movimentações são bloqueados; correção só por ESTORNO.<br>**Índice único parcial:** no máximo um fornecedor preferencial por produto.<br>**Índices trigram** para autocomplete, **BRIN** em tabela append-only e índice parcial para itens abaixo do ponto de reposição.<br>**Views** `vw_estoque_situacao` (semáforo, dias no estoque, itens parados) e `vw_sugestao_reposicao` (diferencial). |
+| Definir os contratos da API REST, tratamento centralizado de erros, validação de entrada e implementar os módulos do backend em TypeScript com Express 5. | `"Você é um arquiteto de soluções, defina como as chamadas de API devem ocorrer, e monte a estrutura das chamadas, o projeto usa node.js com cors e express, e prisma."`<br><br>`"acha que precisa mudar mais alguma coisa? o arquivo em anexo permite usar ts para a api ou tem que ser js?"`<br><br>`"no app.ts você deixou // ... demais routers, quais routers seriam? crie a middleware e os arquivos necessários"` | No Express 5, `req.query` tornou-se uma propriedade *getter* somente leitura, o que causava erro ao tentar sobrescrevê-la no middleware de validação do `zod`. O middleware `validate.ts` foi refinado para gravar os dados validados e tipados em `res.locals.valid`. Também foi ajustada a ordenação dos itens por `produtoId` dentro de `prisma.$transaction` antes de inserir movimentações. | • **TypeScript + Express 5:** captura nativa de rejeições assíncronas pelo `errorHandler` central.<br>• **Ações de domínio explícitas:** rotas semânticas (`/:id/enviar`, `/:id/receber`, `/:id/cancelar`, `/:id/estornar`) em vez de `PATCH` genérico de status.<br>• **Prevenção de Deadlock:** ordenação determinística de itens por `produtoId` nas transações.<br>• **Precisão numérica:** valores `Decimal` serializados como `string` na API para evitar erros de ponto flutuante IEEE 754. |
 
-### 3.4 Arquitetura das chamadas de API
+### 3.5 Arquitetura do Frontend (Next.js App Router + TanStack Query)
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Definir como o front consome o backend: recursos, convenções, regras de transação, formato de erro e chamadas por tela. | `Você é um arquiteto de soluções, defina como as chamadas de API devem ocorrer, e monte a estrutura das chamadas, o ptojeto usa node.js com cors e express, e prisma.`<br>Anexos: `analise-de-ia-sobre-projeto-com-sugestoes.pdf`, `schema.prisma`, `extras.sql`.<br>Seguiram: `acha que precisa mudar mais alguma coisa? o arquivo em anexo permite usar ts para a api ou tem que ser js?` (com as diretrizes do professor anexadas). | A IA propôs endpoints, convenções e fluxos por tela.<br>Na revisão cruzada com as diretrizes, a IA apontou: automatizar o `extras.sql` na migração, criar seed para a demo, fixar versões (`engines`), alinhar a estrutura do repositório e priorizar o escopo para o prazo.<br>Pergunta sobre `app.ts`: o comentário `// ... demais routers` foi substituído pela lista completa dos 8 routers. | API REST versionada em `/api/v1`; rotas em português, plural e kebab-case.<br>**Não existe `POST /movimentacoes` genérico**: movimentações nascem de saída, recebimento, ajuste e estorno.<br>Ações de negócio como sub-recursos (`/:id/enviar`, `/:id/receber`, `/:id/cancelar`) em vez de `PATCH status`.<br>**Soft delete** (`ativo = false`) nos cadastros, porque o histórico usa `onDelete: Restrict`.<br>`Decimal` trafega como **string** (evita erro de ponto flutuante).<br>Código por módulo: `routes` → `controller` → `service` → `schemas`, para separar responsabilidades.<br>Reposição como **diferencial único**: `GET /reposicao/sugestoes` (agrupado por fornecedor) e `POST /reposicao/rascunhos`. |
+| Construir a interface web focada em agilidade operacional para o almoxarifado (Retirada de material com leitor de código de barras, Reposição do dia e Catálogo de produtos). | `"Crie a interface com node.js e Next.js App Router para o estoque com foco em agilidade de almoxarifado..."`<br><br>`"Tratar os retornos da API em português e permitir Desfazer movimentação com Toast."` | O Next.js iniciava por padrão na porta `3000`, conflitando com o backend Express. Ajustamos o script `dev` do `web/package.json` para rodar na porta `3001` e configuramos `rewrites` no `next.config.ts` redirecionando `/api/*` para `http://localhost:3000/api/*`, eliminando erros de CORS. No tratamento do erro `422 SALDO_INSUFICIENTE`, refinamos a tela de saída para destacar em vermelho apenas os itens que excederam o estoque, preservando o carrinho preenchido. | • **Next.js App Router + TanStack Query:** invalidação automática de cache (`produtos`, `reposicao`, `pedidos-saida`) após cada mutação.<br>• **UX à prova de erros:** notificações via `sonner` com botão de ação imediata **"Desfazer"**, que aciona o cancelamento/estorno transacional.<br>• **Padronização de respostas:** helper `unwrapList` e mapeamento de erros em `web/src/lib/errors.ts`. |
 
-### 3.5 Escolha de linguagem: TypeScript
+### 3.6 Histórico de Saídas com Filtros e Paginação
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Verificar se as diretrizes permitem TypeScript no backend (os exemplos do PDF usam `.js`). | `o arquivo em anexo permite usar ts para a api ou tem que ser js?` | A IA leu as diretrizes: exigem Node.js + Express e `nodemon`, sem restringir a linguagem.<br>`[PREENCHER: se o grupo confirmou com o professor]` | Usar **TypeScript**, mantendo o `nodemon` como runner de desenvolvimento (`nodemon --exec tsx src/server.ts`).<br>Motivo: o client do Prisma é tipado e os tipos reduzem erros nas regras de negócio.<br>Plano alternativo: JS com ESM, se o TS atrapalhar a execução na apresentação. |
+| Exibir na tela de retiradas um histórico paginado (20, 50 ou 100 itens) com filtros por período (máximo 1 ano), produto e requisitante, permitindo estornar retiradas. | `"Você é um expert em desenvolvimento front end com muita experiência em UX, baseado no diretório web que você gerou, quero que, além da tela que permita eu retirar os materiais, quero que seja exibido também um histórico com filtros: período, produto e funcionário. Por padrão ele vai exibir 20 itens por página, mas é possível aumentar para 50 ou 100, o período filtrado não pode possuir intervalo maior que um ano..."` | Inicialmente a listagem mostrava apenas o cabeçalho da retirada. O grupo solicitou refinamento para exibir os itens detalhados com suas quantidades e botão de desfazer diretamente em cada registro do histórico, além de validar o limite de 365 dias antes de disparar a requisição. | • Validação de intervalo máximo de 1 ano tanto no frontend (com alerta visual imediato) quanto na query da API.<br>• Paginação server-side integrada ao `keepPreviousData` do TanStack Query para transições suaves de página. |
 
-### 3.6 Implementação do backend
+### 3.7 Tema Claro/Escuro (Dark/Light Mode)
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Criar a base da API: middlewares, utilitários e os 8 módulos (produtos, fornecedores, requisitantes, pedidos de entrada e saída, movimentações, estoque, reposição). | `no app.ts você deixou // ... demais routers, quais routers seriam?`<br>`não tenho essa pasta e nem a middleware, crie a middleware e os arquivos necessários`<br>`gera os routes de cada modules` | A IA gerou 45 arquivos em um zip e verificou apenas a sintaxe (sem compilar com tipos).<br>Os erros de TypeScript no VS Code vieram de dependências não instaladas e client do Prisma não gerado (seção 4).<br>`[PREENCHER: ajustes feitos pelo grupo no código gerado]` | **Express 5** (erros assíncronos chegam ao `errorHandler` sem wrapper).<br>**zod** valida `params`, `query` e `body`; schemas `.strict()` rejeitam `saldoAtual`. O resultado fica em `res.locals.valid`, porque `req.query` é somente leitura no Express 5.<br>**`errorHandler` central** converte `ZodError`, erros de negócio e códigos do Prisma (`P2002`→409, `P2025`→404) e reconhece o CHECK de saldo pelo nome da constraint (→ 422 `SALDO_INSUFICIENTE`).<br>**`prisma.$transaction`** em toda operação que gera movimentação.<br>**Itens ordenados por `produtoId`** antes de gravar, para evitar deadlock (a trigger trava a linha do produto).<br>**Estorno de recebimento** devolve a quantidade ao item e recalcula o status do pedido, mantendo correto o "já a caminho" da view de reposição.<br>Recebimento acima do pedido retorna 422 `EXCEDE_PEDIDO`.<br>No envio, a previsão de entrega usa o maior prazo entre os itens, se não informada.<br>Rascunho de reposição pré-preenche quantidade sugerida, preço e marca. |
+| Implementar alternância entre modo claro e escuro em todo o sistema e corrigir cartões que permaneciam brancos no histórico de saídas. | `"adicione a opção de modo claro e escuro no sistema"`<br><br>`"no modo escuro a parte de historico de saidas ficou branca"` | Na primeira versão do tema escuro, o componente `historico.tsx` continha classes utilitárias fixas (`bg-white`, `bg-slate-50`, `text-slate-900`) que ignoravam o seletor `.dark`. Foi feita uma varredura substituindo cores estáticas por tokens semânticos (`bg-card`, `bg-muted/40`, `text-foreground`, `border-border`) e variantes `dark:`. | • Criação do `ThemeProvider` (`web/src/components/theme-provider.tsx`) sincronizado com `localStorage` (`estoque:tema`) e classe `.dark` no elemento `<html>`.<br>• Botão alternador persistente na barra lateral (`nav.tsx`) com suporte completo em todas as telas e modais. |
 
-### 3.7 Subida do ambiente e testes manuais
+### 3.8 Autenticação, Sessão e Controle de Acesso por Perfil (RBAC)
 
-| Problema / Requisito | Prompts utilizados | Refinamento (iterações) | Decisão de engenharia |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| Validar o backend de ponta a ponta antes de construir o front. | `como testo agora a api?`<br>(e as mensagens de erro da seção 4, enviadas com o texto completo.) | A IA propôs um roteiro no Thunder Client (sucesso + erro) e ajudou a diagnosticar cada falha.<br>Resultado informado pelo grupo: **todos os testes do roteiro passaram**. | Roteiro adotado como critério de aceitação:<br>1) `GET /health`.<br>2) Criar requisitante, fornecedor e produto; vincular fornecedor com prazo.<br>3) Pedido de entrada: criar → enviar → receber; saldo do produto passa a refletir a entrada.<br>4) Pedido de saída; saldo diminui.<br>5) Erros: saída maior que o saldo (422), `saldoAtual` no body (400), código duplicado (409), id inexistente (404), receber duas vezes (409), rota inexistente (404).<br>6) Estorno (e estorno repetido, 409) e cancelamento de saída.<br>7) Reposição: semáforo, sugestões agrupadas e geração de rascunho.<br>Coleção do Thunder Client: `[PREENCHER: caminho em docs/]`. |
+| Criar sistema de login com 4 níveis de permissão (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR`) e fluxo de aprovação de solicitações de compra. | `"adicione um sistema de login com 4 niveis de permissão: solicitante, almoxarifado, compras e supervisor, onde a sugestão de compra do almoxarifado vai para aprovação de compras ou supervisor"` | Foi necessário criar a tabela `usuarios` e o enum `PerfilUsuario` no Prisma, além de adicionar o status `SOLICITADO` no ciclo de vida de `PedidoEntrada` e a relação com `solicitanteUsuarioId`. Na revisão da barra lateral, adicionamos troca rápida de perfil / logout e badges indicando pendências por perfil. | • **RBAC em duas camadas:** proteção visual e de rotas no `AppLayout` (`web/src/app/(app)/layout.tsx`) combinada com verificação de perfil nos endpoints do backend.<br>• **Segregação de funções:** o `ALMOXARIFADO` gera solicitações de reposição (`SOLICITADO`), mas apenas `COMPRAS` ou `SUPERVISOR` podem aprovar e emitir a Ordem de Compra (`ENVIADO`). |
 
-## 4. Problemas encontrados e como foram resolvidos
+### 3.9 Recebimento de Materiais em 2 Etapas (Conferência por OC + Nota Fiscal)
 
-| Sintoma | Causa | Solução | Observação sobre a IA |
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
 |---|---|---|---|
-| VS Code: `Cannot find module 'zod'`, `'express'`, `'@prisma/adapter-pg'`, `'../generated/prisma/client'` e `Cannot find name 'process'`. | Dependências não instaladas, client do Prisma não gerado, `tsconfig.json` e tipos do Node ausentes. | `npm install` das dependências e dev-dependencies, `tsconfig.json`, `npx prisma generate` e reinício do TS Server. | O código estava correto; a IA não pôde instalar pacotes no ambiente dela. |
-| `docker compose ps` não mostrava a porta esperada; conexão recusada. | Mapeamento `"${POSTGRES_PORT:-51214}:51214"`: o lado do container deve ser **5432**, a porta interna do Postgres. | Alterar para `...:5432`. | Diagnóstico correto da IA a partir do print do compose. |
-| `P1001: Can't reach database server at localhost:51214`, mesmo com o Prisma exibindo `localhost:5432`. | O `DATABASE_URL` era do tipo **`prisma+postgres://`**, gerado pelo `prisma init` (servidor local do Prisma). O `api_key` em Base64 embute `postgres://...:51214`. | Trocar por URL normal `postgresql://usuario:senha@localhost:PORTA/banco`, com a senha codificada (`+` → `%2B`). | **A IA errou na primeira hipótese** (variável de ambiente do Windows ou `shadowDatabaseUrl`). A causa real só apareceu quando o grupo colou o `.env`. |
-| `P1000: Authentication failed` para o usuário `estoque`. | Causas prováveis: volume `pgdata` criado com credenciais antigas (o Postgres só lê usuário e senha na primeira criação) e/ou outro PostgreSQL na porta 5432. | `docker compose down -v`, alinhar usuário, senha, banco e **porta** (51214) entre o `.env` da raiz e o `back/.env`, e subir de novo. | Hipótese da IA; o banco estava vazio, então apagar o volume não perdia dados. |
-| `npm error Missing script: "dev"`. | Os scripts sugeridos não estavam no `package.json`. | `npm pkg set` para `type=module` e scripts `dev`, `start`, `typecheck`, `migrate`, `generate`. | A IA mostrou os scripts como trecho; faltou deixar claro que era preciso aplicá-los. |
-| `ROTA_NAO_ENCONTRADA` em `/api/v1` e em `/pedidos-entrada/1/receber`. | `/api/v1` sozinho não tem rota; `/receber` só existe como `POST`, e a chamada usava outro método ou omitia o prefixo `/api/v1`. | Usar `POST http://localhost:3000/api/v1/pedidos-entrada/1/receber` com body JSON. | O código de erro `ROTA_NAO_ENCONTRADA` (diferente de `NAO_ENCONTRADO`) ajudou a localizar a causa. |
-| `.env` do `back` com valores de exemplo (usuário `postgres`, porta 5432) diferentes do `.env` da raiz. | Valores do `.env.example` não editados. | Alinhar os dois `.env` e padronizar os `.env.example` com valores fictícios. | A IA percebeu a divergência ao comparar os dois arquivos colados. |
-| Ajuste de porta da API (zip usava 3333; `.env` do grupo usa 3000). | Valor de exemplo diferente. | `base_url` do Thunder Client apontando para a porta do `PORT` real. | — |
+| Criar tela de recebimento vinculada à Ordem de Compra (OC) suportando entregas parciais, onde o saldo só entra no estoque após a conferência física do Almoxarifado **e** o lançamento da Nota Fiscal pelo setor de Compras. | `"crie uma tela de recebimento de materiais por OC (permitindo chegada parcial com checkbox e quantidade editavel), onde os itens só entram no estoque após o almoxarifado confirmar o recebimento fisico e o setor de compras lançar a NF"` | Para suportar múltiplos recebimentos parciais de uma mesma OC sem incrementar o estoque precocemente, não bastava usar a coluna `quantidadeRecebida` diretamente na primeira etapa. Criamos as tabelas `recebimentos_entrada` e `itens_recebimento_entrada` com duas etapas independentes (`conferidoPorId`/`dataConferencia` e `nfLancadaPorId`/`numeroNf`/`dataLancamentoNf`). | • **Dupla custódia antes da entrada no estoque:** o lote de recebimento fica `PENDENTE` até que **ambas** as etapas (Conferência Física pelo `ALMOXARIFADO` e Nota Fiscal por `COMPRAS`/`SUPERVISOR`) sejam concluídas, em qualquer ordem.<br>• **Geração atômica de movimentação:** somente quando a segunda etapa do lote é confirmada o serviço chama `efetivarEntradaEstoqueNoBanco`, gerando as linhas em `movimentacoes` (que acionam a trigger de saldo) e atualizando o status do pedido para `RECEBIDO_PARCIAL` ou `RECEBIDO`. |
 
-## 5. Postura crítica: onde a IA errou ou precisou de correção
+### 3.10 Resolução de Conflitos Git, Gestão de Fornecedores e Unificação de Pedidos/OC
 
-- **Hipótese incorreta no erro P1001.** A IA sugeriu duas causas que não eram a real. A causa (URL `prisma+postgres://` do `prisma init`) foi encontrada ao analisar o `.env` completo enviado pelo grupo. Lição: enviar a mensagem de erro **e** o arquivo de configuração envolvido.
-- **Afirmação corrigida sobre o `prisma7.config.ts`.** A IA disse que o arquivo não seria lido por causa do nome; a saída do Prisma (`Loaded Prisma config from prisma7.config.ts`) mostrou que era carregado. A IA reconheceu e corrigiu.
-- **Código não executado pela IA.** Tudo o que foi gerado só foi validado em sintaxe; erros de tipo e de execução só aparecem rodando. Por isso o roteiro de testes (3.7) é o critério de aceitação.
-- **Instruções incompletas.** Scripts do `package.json` e `tsconfig.json` foram entregues sem ficar claro que precisavam ser aplicados à mão, gerando o erro `Missing script: "dev"`.
-- **Decisões que continuam sendo do grupo:** escopo (um único diferencial), estoque de local único e o que ficou de fora do MVP.
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
+|---|---|---|---|
+| Resolver conflitos de merge da branch de fornecedores/acompanhamento, corrigir desalinhamento nos filtros avançados, adicionar filtro de pedidos atrasados e unificar `/compras` e `/pedidos` em uma única tela. | `"resolva os conflitos de merge..."`<br><br>`"unifique a tela de solicitações de compra e acompanhamento de pedidos em uma só"`<br><br>`"no filtro avançado as caixas de texto estão desalinhadas, e adicione a funcionalidade de filtrar os pedidos atrasados"`<br><br>`"essa junção das duas telas se encaixa como feat?"` | Ao mesclar a branch do colega (que trazia `acompanhamento`, `cadastro-fornecedor` e `gestao-fornecedor`), faltava a função `fmtMoeda` em `web/src/lib/format.ts` e o enum `StatusPedidoEntrada` não incluía `SOLICITADO` em `tipos.ts`. Além disso, nos filtros avançados de `/pedidos`, o rótulo `"Entrega prevista ou realizada entre"` quebrava em duas linhas empurrando os inputs de data para baixo; corrigimos usando `mt-auto` nos grupos de inputs dentro do grid CSS. | • **Tela unificada `/pedidos` (`acompanhamento.tsx`):** reúne solicitações aguardando revisão (com botões de *Aprovar e emitir OC* ou *Rejeitar* para `COMPRAS`/`SUPERVISOR`), ordens em andamento e atalho para Recebimento (OC/NF). A rota antiga `/compras` redireciona automaticamente para `/pedidos`.<br>• **Filtro de atrasados (`atrasados=true`):** filtra no backend pedidos com status `ENVIADO` ou `RECEBIDO_PARCIAL` cuja `previsaoEntrega < CURRENT_DATE`.<br>• **Classificação de commit:** orientado o uso de `feat(pedidos)` por entregar nova experiência funcional unificada e filtro inédito. |
 
-## 6. Pendências e próximos passos
+### 3.11 Restrição do Perfil Solicitante e Fluxo de Separação Detalhada no Almoxarifado
 
-- [ ] Seed para a demonstração (produtos, fornecedores com prazos diferentes e ~30 dias de saídas, para a tela "O que comprar hoje" não aparecer vazia).
-- [ ] Frontend (ordem planejada: saída rápida, listagem com semáforo, "O que comprar hoje", cadastros e recebimento).
-- [ ] README com a sequência para rodar do zero (copiar os dois `.env.example`, `docker compose up -d`, migrate, seed, `npm run dev`).
-- [ ] Exportar a coleção do Thunder Client para `docs/`.
-- [ ] Prints do Kanban em `docs/kanban-prints/` `[PREENCHER]`.
-- [ ] Sem autenticação no MVP (a análise cita "usuário" na movimentação, que não existe no schema atual).
-- [ ] Sem testes automatizados; a validação atual é manual.
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
+|---|---|---|---|
+| Restringir o perfil `SOLICITANTE` apenas às telas de Produtos e Retirada de material (enviando lista com destinatário), e permitir que o `ALMOXARIFADO`/`SUPERVISOR` registre a separação detalhada item a item (marcando itens separados, itens faltantes e se necessitam compra ou já estão a caminho) antes de dar baixa no estoque. | `"o usuario solicitante não deve ter acesso a tela de pedidos e OC, apenas a tela de produtos e o preenchimento de uma lista de materiais para a retirada informando o destinatario desse material, que sera enviada para o funcionario do amoxarifado e para o usuario supervisor (onde esses usuarios teriam o registro e poderiam dar baixa desses itens no estoque)"`<br><br>`"no usuario do almoxarifado gostaria dessa lista que o solicitante envia, tenha mais detalhes na hora da separação, sendo possivel o funcionario do almoxarifado informar quais itens foram separados quais itens estão faltando para envio (e se esses itens faltantes seram necessarios a compra ou já estão a caminho)"` | Na primeira versão, qualquer retirada já abatia o estoque imediatamente. Com a mudança de requisito, criamos o status `PENDENTE` em `PedidoSaida` e adicionamos nas linhas de `itens_pedido_saida` os campos `separado`, `quantidade_separada` e `situacao_faltante` (`NECESSITA_COMPRA` \| `A_CAMINHO`). Durante a verificação com ESLint v9 (`react-hooks/set-state-in-effect`), refatoramos o estado do painel de separação em `historico.tsx` para inicializar via *lazy state* ao abrir o card, evitando `setState` dentro de `useEffect`. | • **Solicitação sem baixa precoce:** quando o `SOLICITANTE` envia uma lista de retirada, o pedido nasce como `PENDENTE` sem gerar linhas em `movimentacoes`.<br>• **Painel interativo de separação (`historico.tsx` + `PATCH /pedidos-saida/:id/separacao`):** o almoxarife marca o que separou fisicamente, ajusta a quantidade disponível e classifica o motivo da falta (`Precisa comprar` ou `Já a caminho (OC)`), com cálculo automático de sugestões baseado no saldo atual e nas OCs ativas.<br>• **Baixa efetiva (`POST /pedidos-saida/:id/baixar`):** atualiza as quantidades do pedido para o que foi efetivamente separado e executa a baixa transacional no estoque apenas dos itens entregues. |
 
+### 3.12 Gestão de Usuários (CRUD exclusivo do Supervisor)
 
-## 7. Criacao de historico de saidas
--Prompt principal: Você é um expert em desenvolvimento front end com muita experiência em UX, baseado no diretório web que você gerou, quero que, além da tela que permita eu retirar os materiais, quero que seja exibido também um histórico com filtros: período, produto e funcionário.
+| Problema / Requisito | Prompts Utilizados | Refinamento (Iterações) | Decisão de Engenharia |
+|---|---|---|---|
+| Criar uma tela completa de gerenciamento de usuários (CRUD) acessível exclusivamente pelo perfil `SUPERVISOR`, seguindo boas práticas de Next.js e segurança de regras de negócio. | `"pensando como um expert em next.js faça para o usuario supervisor uma tela CRUD de usuarios"`<br><br>`"esse primeiro topico destacado em azul"` / `"opção 1 e 3 (deixar o ambar)"` (ajuste visual na navegação lateral para remover o destaque azul fixo de *Retirar material* e padronizar o badge em âmbar). | Implementamos o módulo `/api/v1/usuarios` no backend e a feature `gestao-usuarios.tsx` no frontend. Para evitar que o sistema ficasse trancado sem administradores, adicionamos travas de segurança no `usuarios.service.ts` impedindo que o supervisor desative a própria conta ou rebaixe/desative o último usuário com perfil `SUPERVISOR` ativo. | • **Proteção de integridade administrativa:** validação transacional que garante a existência de pelo menos 1 `SUPERVISOR` ativo em qualquer operação de edição ou ativação/desativação (`422 ULTIMO_SUPERVISOR` e `422 AUTO_DESATIVACAO_BLOQUEADA`).<br>• **Interface reativa:** cards de métricas por perfil, busca com *debounce*, filtro por nível de acesso e status, modal único para criação/edição e sincronização imediata com a sessão caso o supervisor atualize o próprio nome/e-mail. |
 
-Por padrão ele vai exibir 20 itens por página, mas é possível aumentar para 50 ou 100, o período filtrado não pode possuir intervalo maior que um ano, qualquer erro no filtro deve ser avisado por meio de um pop-up vermelho, seja por ser inválido ou se houver algum erro ao carregar os dados, deve ter um botão para atualizar a lista.
+---
 
--Foi feito alguns refinamentos, como exibir os itens, suas quantidades e permitir desfazer o pedido de saida.
+## 4. Problemas técnicos encontrados e soluções adotadas
+
+| Sintoma / Erro | Causa Raiz | Solução Aplicada | Aprendizado / Revisão sobre a IA |
+|---|---|---|---|
+| `P1012` ao rodar `prisma migrate` na configuração inicial. | O projeto instalou o Prisma 7, que removeu `url = env("DATABASE_URL")` do `schema.prisma` em favor do `prisma.config.ts` e adapter `pg`. | Configuração do `prisma.config.ts` e instanciação do `PrismaPg` em `back/src/lib/prisma.ts`. | A IA inicialmente gerou sintaxe do Prisma 6 por ser o padrão mais comum no treinamento; a leitura do log real permitiu migrar para a arquitetura do Prisma 7. |
+| `P1001: Can't reach database server` / `P1000: Authentication failed`. | Porta do container mapeada como `51214:51214` (em vez de `:5432`) e volume Docker antigo com senha divergente. | Ajuste do `docker-compose.yml` para `${POSTGRES_PORT:-51214}:5432`, recriação do volume (`docker compose down -v`) e alinhamento dos arquivos `.env`. | A primeira hipótese da IA não identificou a URL `prisma+postgres://`; colar o `.env` completo foi essencial para o diagnóstico exato. |
+| Erro ao atribuir `req.query = ...` no middleware de validação. | No Express 5, `req.query` passou a ser apenas um *getter* imutável. | Armazenamento do payload validado pelo `zod` em `res.locals.valid` (`validate.ts`). | Demonstra a importância de testar a execução real em Node 22 + Express 5 em vez de confiar apenas na análise estática. |
+| Erro de compilação em `acompanhamento.tsx` após merge Git (`fmtMoeda` e `StatusEntrada`). | Conflito semântico entre branches: a tela de acompanhamento importava `fmtMoeda` ainda não existente em `format.ts` e desconhecia o status `SOLICITADO`. | Adição de `fmtMoeda` em `web/src/lib/format.ts` e unificação da tipagem com `StatusPedidoEntrada` em `web/src/features/entradas/tipos.ts`. | Revisão manual pós-merge seguida de `tsc --noEmit` em ambos os projetos (`back` e `web`). |
+| Avisos do ESLint v9 (`react-hooks/set-state-in-effect`) em `acompanhamento.tsx` e `historico.tsx`. | Uso de `useEffect` para sincronizar estado de paginação e rascunho de separação a partir de props/dados assíncronos. | Substituição por cálculo derivado (`paginaEfetiva`) e inicialização preguiçosa (*lazy state initializer*) no evento de abertura do painel. | As regras do React 19 / Next 16 no ESLint exigem evitar efeitos colaterais de renderização cascata; o código ficou mais limpo e previsível. |
+
+---
+
+## 5. Postura crítica: onde a IA precisou de intervenção humana
+
+1. **Adaptação à realidade operacional do almoxarifado:** A primeira versão sugerida pela IA tratava toda entrada e toda saída como eventos de um único passo. Foi a análise crítica do grupo sobre o processo físico real que levou à criação:
+   - Do **Recebimento em 2 Etapas (OC + NF)**, separando a conferência física do almoxarife do lançamento fiscal de Compras;
+   - Do **Fluxo de Separação de Retiradas**, permitindo ao almoxarife informar exatamente quanto conseguiu separar de cada item e classificar o que faltou (`NECESSITA_COMPRA` ou `A_CAMINHO`) antes de dar baixa no estoque.
+2. **Alinhamento ao ecossistema Prisma 7 + Express 5 + React 19:** Em diversos momentos a IA recorreu a padrões de versões anteriores (como `url` dentro do `schema.prisma`, mutação de `req.query` no Express 4 ou `setState` dentro de `useEffect`). A execução rigorosa de `npm run typecheck` e `eslint` pelo grupo identificou e corrigiu todos esses pontos antes dos commits.
+3. **Consistência visual e UX:** Detalhes de interface como cartões claros vazando no modo escuro, desalinhamento vertical de inputs quando um label quebrava linha no filtro avançado e excesso de destaque azul na barra de navegação foram identificados visualmente pelo grupo durante os testes manuais e refinados iterativamente.
