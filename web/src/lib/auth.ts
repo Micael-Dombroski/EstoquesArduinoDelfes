@@ -62,6 +62,10 @@ export function podeVerFornecedores(perfil?: PerfilUsuario | null): boolean {
   return perfil === "ALMOXARIFADO" || perfil === "COMPRAS" || perfil === "SUPERVISOR";
 }
 
+export function podeGerenciarUsuarios(perfil?: PerfilUsuario | null): boolean {
+  return perfil === "SUPERVISOR";
+}
+
 let cacheBruto: string | null = null;
 let cacheSessao: Sessao | null = null;
 

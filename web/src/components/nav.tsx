@@ -3,16 +3,24 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTema } from "@/app/providers";
-import { ROTULO_PERFIL, podeBaixarRetirada, podeSolicitarCompra, podeVerFornecedores, useSessao } from "@/lib/auth";
+import {
+  ROTULO_PERFIL,
+  podeBaixarRetirada,
+  podeGerenciarUsuarios,
+  podeSolicitarCompra,
+  podeVerFornecedores,
+  useSessao,
+} from "@/lib/auth";
 import { usePedidosEntrada, useRecebimentos, useSaidasPendentes } from "@/lib/hooks";
 
 const LINKS = [
-  { href: "/saida", rotulo: "Retirar material", destaque: true, apenasCompras: false, badgeSaida: true },
+  { href: "/saida", rotulo: "Retirar material", apenasCompras: false, badgeSaida: true },
   { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true },
   { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: true, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },
-    { href: "/fornecedores", rotulo: "Fornecedores", apenasCompras: false, ocultoSolicitante: true },
+  { href: "/fornecedores", rotulo: "Fornecedores", apenasCompras: false, ocultoSolicitante: true },
+  { href: "/usuarios", rotulo: "Usuários", apenasCompras: false, apenasSupervisor: true },
 ];
 
 function IconeSol() {
@@ -47,10 +55,11 @@ export function Nav() {
   const { data: saidasPendentes = [] } = useSaidasPendentes(temAcessoBaixaSaida);
 
   const ativo = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-    const linksVisiveis = LINKS.filter(
+  const linksVisiveis = LINKS.filter(
     (l) =>
       (!l.apenasCompras || podeSolicitarCompra(usuario?.perfil)) &&
-      (!l.ocultoSolicitante || podeVerFornecedores(usuario?.perfil)),
+      (!l.ocultoSolicitante || podeVerFornecedores(usuario?.perfil)) &&
+      (!l.apenasSupervisor || podeGerenciarUsuarios(usuario?.perfil)),
   );
   const infoPerfil = usuario ? ROTULO_PERFIL[usuario.perfil] : null;
   const qtdRascunhos = temAcessoCompras ? rascunhos.length : 0;
@@ -72,16 +81,14 @@ export function Nav() {
             key={l.href}
             href={l.href}
             className={`flex h-11 items-center justify-between rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-blue-700 dark:focus-visible:outline-blue-400 ${
-              l.destaque
-                ? "bg-blue-700 text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
-                : ativo(l.href)
-                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              ativo(l.href)
+                ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             }`}
           >
             <span>{l.rotulo === "Retirar material" && usuario?.perfil === "SOLICITANTE" ? "Solicitar material" : l.rotulo}</span>
             {l.badgeSaida && qtdSaidasPendentes > 0 && (
-              <span className="rounded-full bg-white/95 px-2 py-0.5 text-xs font-bold text-blue-800">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
                 {qtdSaidasPendentes}
               </span>
             )}

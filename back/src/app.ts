@@ -14,6 +14,7 @@ import { movimentacoesRouter } from './modules/movimentacoes/movimentacoes.route
 import { estoqueRouter } from './modules/estoque/estoque.routes';
 import { reposicaoRouter } from './modules/reposicao/reposicao.routes';
 import { authRouter } from './modules/auth/auth.routes';
+import { usuariosRouter } from './modules/usuarios/usuarios.routes';
 import { acompanhamentoRouter } from './modules/acompanhamento/acompanhamento.routes';
 import { cadastroFornecedorRouter } from './modules/cadastro-fornecedor/cadastro-fornecedor.routes';
 import { gestaoFornecedorRouter } from './modules/gestao-fornecedor/gestao-fornecedor.routes'; // ajuste o caminho
@@ -31,6 +32,7 @@ api.get('/health', async (_req, res) => {
 });
 
 api.use('/auth', authRouter);
+api.use('/usuarios', usuariosRouter);
 api.use('/produtos', produtosRouter);
 api.use('/fornecedores', fornecedoresRouter);
 api.use('/requisitantes', requisitantesRouter);
