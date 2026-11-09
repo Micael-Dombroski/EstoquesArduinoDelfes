@@ -11,11 +11,11 @@ import {
   podeVerFornecedores,
   useSessao,
 } from "@/lib/auth";
-import { usePedidosEntrada, useRecebimentos, useSaidasPendentes } from "@/lib/hooks";
+import { usePedidosEntrada, useRecebimentos, useSaidasPendentes, useSugestoes } from "@/lib/hooks";
 
 const LINKS = [
   { href: "/saida", rotulo: "Retirar material", apenasCompras: false, badgeSaida: true },
-  { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true },
+  { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true, badgeReposicao: true },
   { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: true, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },
@@ -50,6 +50,7 @@ export function Nav() {
   const { usuario, limparSessao } = useSessao();
   const temAcessoCompras = podeSolicitarCompra(usuario?.perfil);
   const temAcessoBaixaSaida = podeBaixarRetirada(usuario?.perfil);
+  const { data: gruposSugestao = [] } = useSugestoes(temAcessoCompras);
   const { data: rascunhos = [] } = usePedidosEntrada("RASCUNHO", temAcessoCompras);
   const { data: pendentesNf = [] } = useRecebimentos("AGUARDANDO_NF", temAcessoCompras);
   const { data: saidasPendentes = [] } = useSaidasPendentes(temAcessoBaixaSaida);
@@ -62,6 +63,9 @@ export function Nav() {
       (!l.apenasSupervisor || podeGerenciarUsuarios(usuario?.perfil)),
   );
   const infoPerfil = usuario ? ROTULO_PERFIL[usuario.perfil] : null;
+  const qtdReposicao = temAcessoCompras
+    ? gruposSugestao.reduce((acc, g) => acc + g.itens.length, 0)
+    : 0;
   const qtdRascunhos = temAcessoCompras ? rascunhos.length : 0;
   const qtdPendentesNf = temAcessoCompras ? pendentesNf.length : 0;
   const qtdSaidasPendentes = temAcessoBaixaSaida ? saidasPendentes.length : 0;
@@ -90,6 +94,11 @@ export function Nav() {
             {l.badgeSaida && qtdSaidasPendentes > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
                 {qtdSaidasPendentes}
+              </span>
+            )}
+            {l.badgeReposicao && qtdReposicao > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                {qtdReposicao}
               </span>
             )}
             {l.badgeRascunho && qtdRascunhos > 0 && (
