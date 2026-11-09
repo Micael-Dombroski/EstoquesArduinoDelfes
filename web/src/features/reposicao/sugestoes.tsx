@@ -56,8 +56,24 @@ export function Sugestoes() {
       </p>
     );
 
+  const totalBaixoEstoque = grupos.reduce((acc, g) => acc + g.itens.length, 0);
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+        <div>
+          <p className="font-semibold">
+            Alerta de reposição: {totalBaixoEstoque} {totalBaixoEstoque === 1 ? "produto está" : "produtos estão"} com baixo estoque
+          </p>
+          <p className="text-xs text-amber-800/90 dark:text-amber-300/80">
+            Verifique as quantidades sugeridas por fornecedor abaixo para solicitar a compra antes que o material acabe.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-amber-200/80 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900/70 dark:text-amber-200">
+          {totalBaixoEstoque} {totalBaixoEstoque === 1 ? "item" : "itens"}
+        </span>
+      </div>
+
       {grupos.map((g) => {
         const selecionados = g.itens.filter((i) => !excluidos[i.produtoId]).length;
         return (

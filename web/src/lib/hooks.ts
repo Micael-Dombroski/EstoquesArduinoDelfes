@@ -28,9 +28,10 @@ export const useRequisitantes = () =>
   });
 
 // Sempre fresco: o gestor precisa ver o saldo real ao voltar para a aba.
-export const useSugestoes = () =>
+export const useSugestoes = (habilitado = true) =>
   useQuery({
     queryKey: ["reposicao", "sugestoes"],
+    enabled: habilitado,
     queryFn: async () => unwrapList<GrupoSugestao>(await api("/reposicao/sugestoes")),
     staleTime: 0,
   });

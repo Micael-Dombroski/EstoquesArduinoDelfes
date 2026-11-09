@@ -24,6 +24,9 @@ export type ItemSugestao = {
   nome: string;
   unidade: string;
   saldoAtual: string;
+  qtdPendente?: string;
+  pontoReposicao?: string;
+  pontoSugerido?: string;
   diasRestantes: number | null;
   qtdSugerida: string;
 };
