@@ -41,7 +41,7 @@ const mapear = (l: LinhaSugestao) => ({
   qtdSugerida: l.qtd_sugerida,
 });
 
-/** Tela "O que comprar hoje": sugestões agrupadas por fornecedor. */
+/** Tela de Reposição: sugestões agrupadas por fornecedor. */
 export async function sugestoes(query: SugestoesQuery) {
   const apenasPrecisaRepor = query.apenasPrecisaRepor ?? true;
   const filtro = apenasPrecisaRepor ? Prisma.sql`WHERE precisa_repor` : Prisma.empty;
@@ -50,15 +50,31 @@ export async function sugestoes(query: SugestoesQuery) {
     SELECT * FROM vw_sugestao_reposicao ${filtro}
     ORDER BY fornecedor_nome NULLS LAST, dias_restantes NULLS LAST, nome`;
 
+  const fornecedorIds = [...new Set(linhas.map((l) => l.fornecedor_id).filter((id): id is number => id != null))];
+  const fornecedores =
+    fornecedorIds.length > 0
+      ? await prisma.fornecedor.findMany({
+          where: { id: { in: fornecedorIds } },
+          select: { id: true, valorMinimoPedido: true },
+        })
+      : [];
+  const mapaMinimo = new Map(fornecedores.map((f) => [f.id, f.valorMinimoPedido?.toString() ?? null]));
+
   // fornecedorId null = produtos sem fornecedor cadastrado (o front deve destacar)
   const grupos = new Map<
     number | null,
-    { fornecedorId: number | null; fornecedorNome: string | null; itens: ReturnType<typeof mapear>[] }
+    {
+      fornecedorId: number | null;
+      fornecedorNome: string | null;
+      valorMinimoPedido: string | null;
+      itens: ReturnType<typeof mapear>[];
+    }
   >();
   for (const l of linhas) {
     const grupo = grupos.get(l.fornecedor_id) ?? {
       fornecedorId: l.fornecedor_id,
       fornecedorNome: l.fornecedor_nome,
+      valorMinimoPedido: l.fornecedor_id != null ? (mapaMinimo.get(l.fornecedor_id) ?? null) : null,
       itens: [],
     };
     grupo.itens.push(mapear(l));
@@ -69,7 +85,7 @@ export async function sugestoes(query: SugestoesQuery) {
 }
 
 /** Botão "Gerar pedido de entrada": cria um RASCUNHO já preenchido para o fornecedor. */
-export async function gerarRascunho(input: RascunhoBody) {
+export async function gerarRascunho(input: RascunhoBody, usuario?: { requisitanteId?: number | null }) {
   const pedidoId = await prisma.$transaction(async (tx) => {
     const fornecedor = await tx.fornecedor.findUnique({ where: { id: input.fornecedorId } });
     if (!fornecedor?.ativo) throw new AppError(422, 'FORNECEDOR_INVALIDO', 'Fornecedor inexistente ou inativo');
@@ -78,35 +94,51 @@ export async function gerarRascunho(input: RascunhoBody) {
       SELECT * FROM vw_sugestao_reposicao
        WHERE precisa_repor AND fornecedor_id = ${input.fornecedorId}`;
 
+    const vinculosFornecedor = await tx.produtoFornecedor.findMany({
+      where: { fornecedorId: input.fornecedorId },
+      select: { produtoId: true, precoUnitario: true },
+    });
+
     const escolhidas = input.itens
       ? input.itens.map((sel) => {
           const linha = sugeridas.find((l) => l.produto_id === sel.produtoId);
-          if (!linha) {
-            throw new AppError(422, 'ITEM_NAO_SUGERIDO', `O produto ${sel.produtoId} não está na sugestão deste fornecedor`);
-          }
-          return { linha, quantidade: sel.quantidade ?? linha.qtd_sugerida.toString() };
+          const vinc = vinculosFornecedor.find((v) => v.produtoId === sel.produtoId);
+          const quantidade = sel.quantidade ?? linha?.qtd_sugerida.toString() ?? '0';
+          return {
+            produtoId: sel.produtoId,
+            quantidade,
+            precoUnitario: linha?.preco_unitario ?? vinc?.precoUnitario ?? null,
+          };
         })
-      : sugeridas.map((linha) => ({ linha, quantidade: linha.qtd_sugerida.toString() }));
+      : sugeridas.map((linha) => ({
+          produtoId: linha.produto_id,
+          quantidade: linha.qtd_sugerida.toString(),
+          precoUnitario: linha.preco_unitario,
+        }));
 
     const itens = escolhidas.filter((e) => Number(e.quantidade) > 0);
     if (itens.length === 0) throw new AppError(422, 'NADA_A_REPOR', 'Nenhum produto a repor para este fornecedor');
 
     // marca padrão do produto como ponto de partida (o usuário pode ajustar no rascunho)
     const produtos = await tx.produto.findMany({
-      where: { id: { in: itens.map((i) => i.linha.produto_id) } },
+      where: { id: { in: itens.map((i) => i.produtoId) }, ativo: true },
       select: { id: true, marca: true },
     });
+    if (produtos.length !== itens.length) {
+      throw new AppError(422, 'PRODUTO_INVALIDO', 'Um ou mais produtos selecionados não existem ou estão inativos');
+    }
 
     const pedido = await tx.pedidoEntrada.create({
       data: {
         fornecedorId: input.fornecedorId,
+        solicitanteId: usuario?.requisitanteId ?? null,
         observacao: 'Rascunho gerado a partir da sugestão de reposição',
         itens: {
-          create: itens.map(({ linha, quantidade }) => ({
-            produtoId: linha.produto_id,
+          create: itens.map(({ produtoId, quantidade, precoUnitario }) => ({
+            produtoId,
             quantidade,
-            precoUnitario: linha.preco_unitario,
-            marca: produtos.find((p) => p.id === linha.produto_id)?.marca ?? null,
+            precoUnitario,
+            marca: produtos.find((p) => p.id === produtoId)?.marca ?? null,
           })),
         },
       },

@@ -32,6 +32,6 @@ export function codigoOc(pedido: { id: number; numeroOc?: string | null }): stri
   return pedido.numeroOc?.trim() || `OC-${String(pedido.id).padStart(4, "0")}`;
 }
 
-export function fmtMoeda(valor: number): string {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export function fmtMoeda(valor: string | number): string {
+  return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }

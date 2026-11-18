@@ -15,7 +15,7 @@ import { usePedidosEntrada, useRecebimentos, useSaidasPendentes, useSugestoes } 
 
 const LINKS = [
   { href: "/saida", rotulo: "Retirar material", apenasCompras: false, badgeSaida: true },
-  { href: "/", rotulo: "Hoje (Reposição)", apenasCompras: true, badgeReposicao: true },
+  { href: "/", rotulo: "Reposição", apenasCompras: true, badgeReposicao: true },
   { href: "/pedidos", rotulo: "Pedidos e OC", apenasCompras: true, badgeRascunho: true },
   { href: "/recebimento", rotulo: "Recebimento (OC / NF)", apenasCompras: true, badgeNf: true },
   { href: "/produtos", rotulo: "Produtos", apenasCompras: false },

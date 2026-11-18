@@ -54,6 +54,10 @@ export function podeDesfazerRetirada(perfil?: PerfilUsuario | null): boolean {
   return perfil === "ALMOXARIFADO" || perfil === "SUPERVISOR";
 }
 
+export function podeEditarEstoqueMinimo(perfil?: PerfilUsuario | null): boolean {
+  return perfil === "ALMOXARIFADO" || perfil === "SUPERVISOR";
+}
+
 export function podeCadastrarFornecedor(perfil?: PerfilUsuario | null): boolean {
   return perfil === "SUPERVISOR";
 }

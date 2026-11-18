@@ -6,8 +6,10 @@ export type Produto = {
   codigo: string;
   nome: string;
   unidade: string;
+  marca?: string | null;
   saldoAtual: string;
   pontoReposicao: string;
+  diasSeguranca?: number;
   ativo: boolean;
 };
 
@@ -27,13 +29,18 @@ export type ItemSugestao = {
   qtdPendente?: string;
   pontoReposicao?: string;
   pontoSugerido?: string;
-  diasRestantes: number | null;
+  consumoMedioDia?: string;
+  diasRestantes: number | string | null;
+  prazoEntregaDias?: number | null;
+  precoUnitario?: string | null;
+  precisaRepor?: boolean;
   qtdSugerida: string;
 };
 
 export type GrupoSugestao = {
   fornecedorId: number | null;
   fornecedorNome: string | null;
+  valorMinimoPedido?: string | null;
   itens: ItemSugestao[];
 };
 

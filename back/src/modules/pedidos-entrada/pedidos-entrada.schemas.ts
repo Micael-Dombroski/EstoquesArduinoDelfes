@@ -32,6 +32,7 @@ const itensSchema = z
 export const criarEntradaSchema = z
   .object({
     fornecedorId: z.number().int().positive(),
+    solicitanteId: z.number().int().positive().nullish(),
     previsaoEntrega: z.coerce.date().nullish(),
     observacao: z.string().trim().nullish(),
     itens: itensSchema,
