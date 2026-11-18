@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { valid } from '../../middlewares/validate';
+import type { UsuarioSessao } from '../auth/auth.service';
 import * as service from './reposicao.service';
 import type { RascunhoBody, SugestoesQuery } from './reposicao.schemas';
 
@@ -10,7 +11,8 @@ export const sugestoes: RequestHandler = async (_req, res) => {
 
 export const gerarRascunho: RequestHandler = async (_req, res) => {
   const { body } = valid<{ body: RascunhoBody }>(res);
-  res.status(201).json(await service.gerarRascunho(body));
+  const usuario = res.locals.usuario as UsuarioSessao | undefined;
+  res.status(201).json(await service.gerarRascunho(body, usuario));
 };
 
 

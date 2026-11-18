@@ -31,7 +31,8 @@ export const obter: RequestHandler = async (_req, res) => {
 
 export const criar: RequestHandler = async (_req, res) => {
   const { body } = valid<{ body: CriarEntrada }>(res);
-  res.status(201).json(await service.criar(body));
+  const usuario = res.locals.usuario as UsuarioSessao | undefined;
+  res.status(201).json(await service.criar(body, usuario));
 };
 
 export const atualizarCabecalho: RequestHandler = async (_req, res) => {

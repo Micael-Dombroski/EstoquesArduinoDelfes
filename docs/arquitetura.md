@@ -8,17 +8,23 @@
 
 ## 1. Visão geral
 
-Sistema web full-stack de controle de estoque para **almoxarifado técnico e industrial**, contemplando catálogo de produtos, gestão de fornecedores (com vínculo N:N de prazos e preços), controle de acesso baseado em 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS` e `SUPERVISOR`), fluxo completo de compras (solicitação, aprovação com emissão de Ordem de Compra e acompanhamento de atrasos), recebimento em duas etapas (conferência física por OC + lançamento de Nota Fiscal), solicitações de retirada com painel de separação detalhada no almoxarifado e livro-razão imutável de movimentações.
+Sistema web full-stack de controle de estoque para **almoxarifado técnico e industrial**, contemplando catálogo de produtos com edição inline de estoque mínimo, gestão de fornecedores (com vínculo N:N de prazos e preços), controle de acesso baseado em 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS` e `SUPERVISOR`), fluxo completo de compras (sugestões automáticas de baixo estoque, solicitações manuais dinâmicas, aprovação com emissão de Ordem de Compra e acompanhamento de atrasos), recebimento em duas etapas (conferência física por OC + lançamento de Nota Fiscal), solicitações de retirada com painel de separação detalhada no almoxarifado e livro-razão imutável de movimentações.
 
 ### Diferenciais implementados
 
-1. **Reposição inteligente (*"O que comprar hoje"*):** Em vez de depender apenas de um ponto de reposição estático, uma *view* no PostgreSQL (`vw_sugestao_reposicao`) calcula o consumo médio diário dos últimos 30 dias, cruza com o prazo de entrega (*lead time*) de cada fornecedor e com a quantidade que já está a caminho em OCs emitidas, sugerindo automaticamente o que precisa ser comprado agrupado por fornecedor.
-2. **Recebimento em 2 etapas (OC + NF):** Os materiais recebidos (total ou parcialmente) só incrementam o saldo do estoque quando **ambas** as custódias são confirmadas: a conferência física pelo `ALMOXARIFADO` e o lançamento da Nota Fiscal pelo setor de `COMPRAS` (ou `SUPERVISOR`).
-3. **Fluxo de retirada com separação detalhada:** O perfil `SOLICITANTE` envia uma lista de materiais informando o destinatário (`PENDENTE`, sem abater o estoque de imediato). O `ALMOXARIFADO` confere a disponibilidade, marca quais itens e quantidades foram separados, classifica eventuais itens faltantes (`NECESSITA_COMPRA` ou `A_CAMINHO`) e efetiva a baixa transacional no estoque.
+1. **Reposição Inteligente e Solicitações Dinâmicas (`/`)**:
+   - Uma *view* no PostgreSQL (`vw_sugestao_reposicao`) calcula o consumo médio diário dos últimos 30 dias, cruza com o prazo de entrega (*lead time*) de cada fornecedor e com a quantidade que já está a caminho em OCs emitidas, sugerindo automaticamente o que precisa ser comprado agrupado por fornecedor (exibindo alertas na barra lateral e permitindo complementar o pedido do fornecedor para atingir o valor mínimo).
+   - Além das sugestões automáticas, um **construtor dinâmico de solicitações para o estoque** permite que `ALMOXARIFADO`, `COMPRAS` e `SUPERVISOR` solicitem itens aproveitando automaticamente os vínculos `ProdutoFornecedor` (preço tabelado, fornecedor preferencial e cálculo de previsão de entrega) e importando em 1 clique itens sinalizados como `NECESSITA_COMPRA` nas separações de saída.
+2. **Calibração Inline de Estoque Mínimo (`pontoReposicao`)**:
+   - Exclusivamente os perfis `ALMOXARIFADO` e `SUPERVISOR` podem editar o estoque mínimo diretamente na tabela de **Produtos** (`/produtos`) ou na tela de **Reposição** (`/`), contando com um atalho de 1 clique para adotar o `pontoSugerido` calculado pelo consumo real dos últimos 30 dias.
+3. **Recebimento em 2 etapas (OC + NF)**:
+   - Os materiais recebidos (total ou parcialmente) só incrementam o saldo do estoque quando **ambas** as custódias são confirmadas: a conferência física pelo `ALMOXARIFADO` e o lançamento da Nota Fiscal pelo setor de `COMPRAS` (ou `SUPERVISOR`).
+4. **Fluxo de retirada com separação detalhada**:
+   - O perfil `SOLICITANTE` envia uma lista de materiais informando o destinatário (`PENDENTE`, sem abater o estoque de imediato). O `ALMOXARIFADO` confere a disponibilidade, marca quais itens e quantidades foram separados, classifica eventuais itens faltantes (`NECESSITA_COMPRA` ou `A_CAMINHO`) e efetiva a baixa transacional no estoque.
 
 | Núcleo do Sistema | Diferenciais de Engenharia e UX |
 |---|---|
-| CRUD de produtos, fornecedores, requisitantes e usuários; pedidos de entrada e saída; saldo mantido por trigger no PostgreSQL | Reposição inteligente (`vw_sugestao_reposicao`); semáforo de estoque (`vw_estoque_situacao`); RBAC em 4 perfis; recebimento em 2 etapas (OC + NF); separação detalhada de retiradas; tema claro/escuro |
+| CRUD de produtos, fornecedores, requisitantes e usuários; pedidos de entrada e saída; saldo mantido por trigger no PostgreSQL | Reposição inteligente + solicitações dinâmicas (`vw_sugestao_reposicao`); semáforo e edição inline de estoque mínimo; RBAC em 4 perfis + login rápido gerenciável; recebimento em 2 etapas (OC + NF); separação detalhada de retiradas; tema claro/escuro |
 
 ---
 
@@ -39,7 +45,7 @@ Sistema web full-stack de controle de estoque para **almoxarifado técnico e ind
 ```bash
 cp .env.example .env && cp back/.env.example back/.env
 docker compose up -d
-cd back && npm install && npx prisma migrate deploy && npm run seed && npm run dev
+cd back && npm install && npx prisma migrate deploy && npx prisma generate && npm run dev
 # Em outro terminal:
 cd web && npm install && npm run dev
 ```
@@ -56,7 +62,7 @@ flowchart LR
 
   subgraph API ["API Express 5 (porta 3000)"]
     direction LR
-    R["routes<br>+ middleware validate (zod)"] --> C["controller"] --> S["service<br>(regras + transações)"]
+    R["routes<br>+ middlewares auth / validate (zod)"] --> C["controller"] --> S["service<br>(regras + transações)"]
     EH["errorHandler central"]
   end
 
@@ -76,17 +82,17 @@ Cada módulo segue a divisão `routes.ts` → `controller.ts` → `service.ts` �
 
 | Módulo | Responsabilidade |
 |---|---|
-| `auth` | Login por e-mail/senha, validação de credenciais e listagem rápida de perfis para demonstração |
+| `auth` | Login por e-mail/senha, validação de credenciais e geração de token assinado com HMAC-SHA256 |
 | `usuarios` | CRUD administrativo de usuários exclusivo para o perfil `SUPERVISOR`, com proteção do último supervisor ativo |
-| `produtos` | Catálogo de produtos, vínculo de fornecedores (`ProdutoFornecedor`) e histórico individual de movimentações |
-| `fornecedores` / `cadastro-fornecedor` / `gestao-fornecedor` | Cadastro, edição, ativação/inativação e gerenciamento de produtos fornecidos, preços e *lead time* |
-| `requisitantes` | Cadastro e listagem de destinatários/setores que retiram materiais |
-| `pedidos-entrada` | Criação de rascunhos/solicitações, aprovação com geração de número de OC (`OC-0001`), lotes de recebimento em 2 etapas (conferência física + NF) e cancelamento |
+| `produtos` | Catálogo de produtos, atualização de estoque mínimo (`pontoReposicao` restrito a `ALMOXARIFADO` e `SUPERVISOR`) e vínculo `ProdutoFornecedor` |
+| `fornecedores` / `cadastro-fornecedor` / `gestao-fornecedor` | Cadastro, edição, ativação/inativação e gerenciamento de produtos fornecidos, preços, pedido mínimo e *lead time* |
+| `requisitantes` | Cadastro e listagem de destinatários/setores que retiram materiais ou originam solicitações |
+| `pedidos-entrada` | Criação de solicitações/rascunhos (com autopreenchimento de preço/marca de `ProdutoFornecedor` e vínculo com `solicitanteId`), aprovação com geração de `OC-XXXX`, recebimento em 2 etapas (conferência física + NF) e cancelamento |
 | `acompanhamento` | Listagem unificada de solicitações e Ordens de Compra com filtros avançados (período, status, solicitante e pedidos em atraso) |
 | `pedidos-saida` | Solicitações de retirada (`PENDENTE`), registro de separação detalhada item a item, baixa efetiva no estoque (`CONCLUIDO`), histórico paginado e cancelamento com estorno |
 | `movimentacoes` | Consulta ao livro-razão, ajustes manuais de inventário (com motivo obrigatório) e estorno de movimentações |
 | `estoque` | Situação consolidada do estoque (semáforo vermelho/amarelo/verde e dias sem saída via `vw_estoque_situacao`) |
-| `reposicao` | Sugestões inteligentes de compra agrupadas por fornecedor (`vw_sugestao_reposicao`) e geração de rascunhos/solicitações |
+| `reposicao` | Sugestões inteligentes de compra agrupadas por fornecedor (`vw_sugestao_reposicao`, incluindo `valorMinimoPedido`) e geração de rascunhos/solicitações |
 
 ---
 
@@ -94,9 +100,9 @@ Cada módulo segue a divisão `routes.ts` → `controller.ts` → `service.ts` �
 
 ```mermaid
 erDiagram
-  USUARIO ||--o{ PEDIDO_ENTRADA : "solicita"
-  USUARIO ||--o{ RECEBIMENTO_ENTRADA : "confere fisicamente"
-  USUARIO ||--o{ RECEBIMENTO_ENTRADA : "lanca NF"
+  REQUISITANTE ||--o{ USUARIO : "vinculado a"
+  REQUISITANTE ||--o{ PEDIDO_ENTRADA : "solicita"
+  REQUISITANTE ||--o{ PEDIDO_SAIDA : "destinatario"
   PRODUTO ||--o{ PRODUTO_FORNECEDOR : "tem"
   FORNECEDOR ||--o{ PRODUTO_FORNECEDOR : "fornece"
   FORNECEDOR ||--o{ PEDIDO_ENTRADA : "recebe"
@@ -105,7 +111,6 @@ erDiagram
   RECEBIMENTO_ENTRADA ||--|{ ITEM_RECEBIMENTO_ENTRADA : "contem"
   ITEM_PEDIDO_ENTRADA ||--o{ ITEM_RECEBIMENTO_ENTRADA : "recebido em"
   PRODUTO ||--o{ ITEM_PEDIDO_ENTRADA : "comprado em"
-  REQUISITANTE ||--o{ PEDIDO_SAIDA : "destinatario"
   PEDIDO_SAIDA ||--|{ ITEM_PEDIDO_SAIDA : "contem"
   PRODUTO ||--o{ ITEM_PEDIDO_SAIDA : "solicitado em"
   PRODUTO ||--o{ MOVIMENTACAO : "historico"
@@ -118,18 +123,20 @@ erDiagram
     string nome
     string email UK
     enum perfil "SOLICITANTE ALMOXARIFADO COMPRAS SUPERVISOR"
+    int requisitante_id FK
     bool ativo
   }
   PRODUTO {
     int id PK
     string codigo UK
     decimal saldo_atual "cache mantido por trigger"
-    decimal ponto_reposicao
+    decimal ponto_reposicao "editavel por Almoxarifado/Supervisor"
     int dias_seguranca
     bool ativo
   }
   PRODUTO_FORNECEDOR {
-    int id PK
+    int produto_id PK
+    int fornecedor_id PK
     int prazo_entrega_dias
     decimal preco_unitario
     bool preferencial "unico por produto"
@@ -142,8 +149,10 @@ erDiagram
   }
   PEDIDO_ENTRADA {
     int id PK
+    int fornecedor_id FK
+    int solicitante_id FK
     string numero_oc UK "ex: OC-0001"
-    enum status "RASCUNHO SOLICITADO ENVIADO RECEBIDO_PARCIAL RECEBIDO CANCELADO"
+    enum status "RASCUNHO ENVIADO RECEBIDO_PARCIAL RECEBIDO CANCELADO"
     date previsao_entrega
   }
   ITEM_PEDIDO_ENTRADA {
@@ -154,24 +163,24 @@ erDiagram
   }
   RECEBIMENTO_ENTRADA {
     int id PK
-    enum status "PENDENTE CONCLUIDO"
-    int conferido_por_id FK
-    timestamptz data_conferencia
+    enum status "AGUARDANDO_NF CONCLUIDO"
+    string recebido_por_nome
+    timestamptz data_recebimento
     string numero_nf
-    int nf_lancada_por_id FK
-    timestamptz data_lancamento_nf
+    string nf_lancada_por_nome
+    timestamptz data_nf
   }
   PEDIDO_SAIDA {
     int id PK
     enum status "PENDENTE CONCLUIDO CANCELADO"
-    timestamptz data_saida
+    timestamptz data_pedido
   }
   ITEM_PEDIDO_SAIDA {
     int id PK
     decimal quantidade "solicitada / baixada"
     bool separado
     decimal quantidade_separada
-    enum situacao_faltante "NECESSITA_COMPRA A_CAMINHO"
+    string situacao_faltante "NECESSITA_COMPRA A_CAMINHO"
   }
   MOVIMENTACAO {
     int id PK
@@ -212,28 +221,29 @@ erDiagram
 - Valores `Decimal` trafegam como `string` no JSON para evitar perda de precisão de ponto flutuante.
 - Tratamento centralizado no `errorHandler.ts` com envelope único `{ error: { code, message, details } }`.
 
-### D5. Reposição inteligente via View SQL (`vw_sugestao_reposicao`)
-- **Contexto:** Pontos de reposição fixos ficam defasados quando o consumo muda ou quando os fornecedores possuem prazos de entrega distintos.
-- **Decisão:** Concentrar a inteligência na view `vw_sugestao_reposicao`:
-  - **Consumo médio diário:** saídas líquidas dos últimos 30 dias $\div 30$.
-  - **Ponto de reposição sugerido:** $\text{consumo médio} \times (\text{prazo de entrega} + \text{dias de segurança})$.
-  - **Saldo disponível projetado:** $\text{saldo atual} + \text{quantidade em trânsito (OCs enviadas)}$.
-  - **Quantidade sugerida de compra:** cobre $\text{prazo} + \text{segurança} + 30\text{ dias}$, descontando o disponível.
+### D5. Reposição inteligente (`vw_sugestao_reposicao`) e Solicitações Dinâmicas
+- **Contexto:** Pontos de reposição fixos ficam defasados quando o consumo muda ou quando os fornecedores possuem prazos de entrega distintos; além disso, o almoxarifado precisa poder solicitar itens preventivamente ou para cobrir faltas em retiradas.
+- **Decisão:**
+  - Concentrar o cálculo automático na view `vw_sugestao_reposicao`:
+    - **Consumo médio diário:** saídas líquidas dos últimos 30 dias $\div 30$.
+    - **Ponto de reposição sugerido:** $\text{consumo médio} \times (\text{prazo de entrega} + \text{dias de segurança})$.
+    - **Saldo disponível projetado:** $\text{saldo atual} + \text{quantidade em trânsito (OCs enviadas)}$.
+    - **Quantidade sugerida de compra:** cobre $\text{prazo} + \text{segurança} + 30\text{ dias}$, descontando o disponível.
+  - Combinar na tela **Reposição** (`/`) as sugestões automáticas de baixo estoque (com seletor para adicionar itens extras do mesmo fornecedor) e o construtor **`+ Solicitar itens para o estoque`**, que aproveita os vínculos `ProdutoFornecedor` (preço, prazo e fornecedor preferencial) e importa em 1 clique os produtos marcados como `NECESSITA_COMPRA` nas separações de retirada.
 
-### D6. Controle de Acesso Baseado em Perfis (RBAC)
+### D6. Controle de Acesso Baseado em Perfis (RBAC) e Governança de Estoque Mínimo
 - **Contexto:** Separar responsabilidades entre quem requisita material, quem opera o almoxarifado físico, quem negocia com fornecedores e quem supervisiona a operação.
-- **Decisão:** Implementação de 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR`) validados tanto na navegação do frontend (`AppLayout` e `Nav`) quanto nas operações da API:
-  - `SOLICITANTE`: restrito ao catálogo de produtos (`/produtos`) e envio de listas de retirada (`/saida`).
-  - `ALMOXARIFADO`: executa a separação detalhada e baixa de retiradas, gera solicitações de reposição e realiza a conferência física de recebimento por OC.
-  - `COMPRAS`: aprova solicitações de compra emitindo OCs, acompanha atrasos, lança Notas Fiscais no recebimento e gerencia fornecedores.
-  - `SUPERVISOR`: acesso total a todas as telas operacionais mais o CRUD exclusivo de usuários (`/usuarios`).
+- **Decisão:** Implementação de 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR`) validados tanto na navegação do frontend (`AppLayout`, `Nav` e `auth.ts`) quanto nos middlewares da API (`exigirPerfil`):
+  - `SOLICITANTE`: restrito ao catálogo de produtos (`/produtos`, com estoque mínimo somente leitura) e envio de listas de retirada (`/saida`).
+  - `ALMOXARIFADO`: executa a separação detalhada e baixa de retiradas, **edita o estoque mínimo (`pontoReposicao`)** nas telas de Produtos e Reposição, gera solicitações de reposição e realiza a conferência física de recebimento por OC.
+  - `COMPRAS`: cria e aprova solicitações de compra emitindo OCs, acompanha atrasos, lança Notas Fiscais no recebimento e consulta fornecedores (visualiza o estoque mínimo apenas como leitura).
+  - `SUPERVISOR`: acesso total a todas as telas operacionais (incluindo edição de estoque mínimo e cadastro de fornecedores) mais o CRUD exclusivo de usuários (`/usuarios`).
 
 ### D7. Recebimento em 2 Etapas (Conferência Física por OC + Nota Fiscal)
 - **Contexto:** No fluxo real de almoxarifado e compras, a chegada física das caixas na doca e o lançamento contábil da Nota Fiscal ocorrem em momentos e setores distintos, podendo haver entregas parciais da mesma Ordem de Compra.
-- **Decisão:** Criar as entidades `RecebimentoEntrada` e `ItemRecebimentoEntrada`. Cada lote de recebimento registra os itens e quantidades parciais que chegaram e exige duas confirmações independentes:
-  1. **Conferência Física** (`ALMOXARIFADO` ou `SUPERVISOR`);
-  2. **Lançamento da NF** (`COMPRAS` ou `SUPERVISOR`).
-- **Consequência:** O lote permanece `PENDENTE` até que ambas as etapas estejam preenchidas. Apenas no instante em que a segunda etapa é concluída o sistema gera as movimentações `ENTRADA`, incrementa `quantidade_recebida` no pedido e atualiza o status da OC para `RECEBIDO_PARCIAL` ou `RECEBIDO`.
+- **Decisão:** Criar as entidades `RecebimentoEntrada` e `ItemRecebimentoEntrada`.
+  1. **Etapa 1 — Conferência Física (`ALMOXARIFADO` ou `SUPERVISOR`):** registra os itens e quantidades parciais recebidas com status `AGUARDANDO_NF`;
+  2. **Etapa 2 — Lançamento da NF (`COMPRAS` ou `SUPERVISOR`):** vincula o número da Nota Fiscal, muda o lote para `CONCLUIDO`, gera as movimentações `ENTRADA` e recalcula o status da OC para `RECEBIDO_PARCIAL` ou `RECEBIDO`.
 
 ### D8. Solicitação de Retirada e Separação Detalhada no Almoxarifado
 - **Contexto:** O solicitante pede materiais para um destinatário, mas nem sempre todos os itens estão disponíveis na prateleira no momento da separação.
@@ -291,12 +301,9 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-  [*] --> RASCUNHO: Criado por Compras / Reposição
-  [*] --> SOLICITADO: Solicitado pelo Almoxarifado
-  SOLICITADO --> ENVIADO: Aprovado por Compras / Supervisor (gera OC-XXXX)
-  RASCUNHO --> ENVIADO: Enviado ao fornecedor (gera OC-XXXX)
-  SOLICITADO --> CANCELADO: Rejeitado
-  RASCUNHO --> CANCELADO: Cancelado
+  [*] --> RASCUNHO: Solicitação criada em Reposição (Sugestão ou Manual)
+  RASCUNHO --> ENVIADO: Aprovado por Compras / Supervisor (gera OC-XXXX)
+  RASCUNHO --> CANCELADO: Rejeitado / Cancelado
 
   ENVIADO --> RECEBIDO_PARCIAL: Lote (Conferência Física + NF) parcial concluído
   ENVIADO --> RECEBIDO: Lote (Conferência Física + NF) total concluído
@@ -315,7 +322,7 @@ stateDiagram-v2
 | Decisão / Limitação | Estado Atual no Projeto | Evolução Futura Possível |
 |---|---|---|
 | **Local único de estoque** | Saldo controlado para um almoxarifado central | Adicionar entidade `LocalEstoque` (corredor/prateleira/filial) e saldo por endereço |
-| **Autenticação e Perfis** | Implementado login com 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR`) e CRUD de usuários | Adicionar tokens JWT assinados com `httpOnly` cookies e recuperação de senha por e-mail |
-| **Valor mínimo do fornecedor** | Exibido como alerta visual nas telas de Reposição e Pedidos/OC quando o pedido fica abaixo do mínimo | Bloqueio configurável ou sugestão automática de itens complementares do mesmo fornecedor |
-| **Importação em lote** | Cadastro individual via interface e carga inicial via `prisma/seed.ts` | Importação de catálogo e notas fiscais via arquivo XML (NF-e) ou CSV |
+| **Autenticação e Perfis** | Implementado login com 4 perfis (`SOLICITANTE`, `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR`), login rápido gerenciável com opção de salvar e CRUD de usuários | Adicionar tokens JWT com `httpOnly` cookies e recuperação de senha por e-mail |
+| **Valor mínimo do fornecedor** | Exibido em tempo real nas telas de Reposição e Pedidos/OC com seletor rápido para complementar itens do fornecedor | Sugestão automática de itens complementares ordenada por giro de estoque |
+| **Importação em lote** | Cadastro via interface e carga inicial via `prisma/seed.sql` | Importação de catálogo e notas fiscais via arquivo XML (NF-e) ou CSV |
 | **Testes** | Validação por checagem estática (`tsc` + `eslint`) e roteiros de teste de ponta a ponta na API e interface | Suíte de testes automatizados de integração com Vitest / Supertest |

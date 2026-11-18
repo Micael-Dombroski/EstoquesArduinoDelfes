@@ -1,8 +1,8 @@
 # Sistema de Controle de Estoque — Delfes / Arduino
 
-Sistema web completo de controle de estoque industrial e laboratorial com **controle de acesso por perfil (RBAC)**, **catálogo de produtos e semáforo de estoque**, **gestão de fornecedores**, **fluxo de solicitação de retirada com separação detalhada pelo almoxarifado**, **solicitações de compra e emissão de Ordem de Compra (OC)**, **recebimento físico parcial/total vinculado à Nota Fiscal (NF)** e **livro-razão imutável de movimentações**.
+Sistema web completo de controle de estoque industrial e laboratorial com **controle de acesso por perfil (RBAC)**, **catálogo de produtos com semáforo e edição inline de estoque mínimo**, **gestão de fornecedores**, **fluxo de solicitação de retirada com separação detalhada pelo almoxarifado**, **reposição inteligente e solicitações dinâmicas de compra**, **emissão de Ordem de Compra (OC)**, **recebimento físico parcial/total vinculado à Nota Fiscal (NF)** e **livro-razão imutável de movimentações**.
 
-**Diferencial: Reposição Inteligente e Rastreabilidade Ponta a Ponta.** O sistema calcula o consumo médio diário de cada produto nos últimos 30 dias, cruza com o prazo de entrega do fornecedor preferencial e com a quantidade já a caminho (OCs emitidas), e exibe na tela **"Hoje (Reposição)"** exatamente **o que comprar hoje**, agrupado por fornecedor, gerando a solicitação de compra com 1 clique antes que o material acabe.
+**Diferencial: Reposição Inteligente e Rastreabilidade Ponta a Ponta.** O sistema calcula o consumo médio diário de cada produto nos últimos 30 dias, cruza com o prazo de entrega do fornecedor preferencial e com a quantidade já a caminho (OCs emitidas), e exibe na tela **"Reposição"** tanto as **sugestões automáticas de baixo estoque** (agrupadas por fornecedor, com opção de complementar itens do fornecedor) quanto um **construtor dinâmico de solicitações para o estoque** integrado aos itens faltantes nas retiradas.
 
 > Trabalho da disciplina de **Laboratório de Programação** — Curso de Ciência da Computação (**UNIFACVEST**)  
 > **Professor:** Willen Leolatto Carneiro  
@@ -60,7 +60,7 @@ EstoquesArduinoDelfes/
 │   ├── src/
 │   │   ├── app/                    # Rotas App Router (/login, /, /saida, /pedidos, /recebimento,
 │   │   │                           # /produtos, /fornecedores, /usuarios)
-│   │   ├── components/             # Barra de navegação responsiva (Nav), paginação, etc.
+│   │   ├── components/             # Barra de navegação responsiva com badges (Nav), paginação, etc.
 │   │   ├── features/               # Componentes de domínio (saida, entradas, recebimento,
 │   │   │                           # reposicao, produtos, fornecedores, usuarios)
 │   │   └── lib/                    # Cliente HTTP (api), sessão/RBAC (auth), hooks React Query, tipos
@@ -155,33 +155,38 @@ O frontend estará disponível em **`http://localhost:3001`** (configurado com p
 
 ## 5. Perfis de Acesso (RBAC) e Contas de Demonstração
 
-Na tela de login (`http://localhost:3001/login`), é possível autenticar digitando e-mail/senha ou clicando em qualquer um dos **4 perfis de demonstração** (senha padrão: `123456`):
+Na tela de login (`http://localhost:3001/login`), é possível autenticar digitando e-mail/senha ou utilizando os **acessos rápidos de 1 clique** (senha padrão: `123456`). O usuário pode remover contas individuais (`✕`) ou ocultar todo o painel de login rápido; caso autentique por uma conta que ainda não esteja salva no login rápido, o sistema exibe um modal perguntando se deseja salvá-la.
 
 | Perfil | E-mail de Teste | Senha | Permissões e Responsabilidades no Sistema |
 |---|---|---|---|
-| **Solicitante** (`SOLICITANTE`) | `solicitante@estoque.local` | `123456` | Acessa **apenas** as telas **Solicitar material** (`/saida`) e **Produtos** (`/produtos`). Monta listas de materiais informando o destinatário/setor e acompanha o status da separação. |
-| **Almoxarifado** (`ALMOXARIFADO`) | `almoxarifado@estoque.local` | `123456` | Realiza a **separação detalhada** das retiradas solicitadas (informando itens separados, quantidades e se faltantes precisam de compra ou estão a caminho), **dá baixa no estoque**, gera solicitações de compra na tela **Hoje (Reposição)** e registra a **chegada física de materiais por OC** (`/recebimento`). |
-| **Setor de Compras** (`COMPRAS`) | `compras@estoque.local` | `123456` | Revisa solicitações de compra do almoxarifado, ajusta quantidades/preços, **aprova e emite a Ordem de Compra (OC)** (`/pedidos`) e **lança a Nota Fiscal (NF)** (`/recebimento`) para liberar a entrada dos materiais no estoque. |
-| **Supervisor** (`SUPERVISOR`) | `supervisor@estoque.local` | `123456` | Possui **acesso total**: aprova solicitações e emite OCs, realiza separação/baixa e estorno de retiradas, cadastra fornecedores e possui acesso exclusivo à tela de **Gestão de Usuários e Permissões (CRUD)** (`/usuarios`). |
+| **Solicitante** (`SOLICITANTE`) | `solicitante@estoque.local` | `123456` | Acessa **apenas** as telas **Solicitar material** (`/saida`) e **Produtos** (`/produtos`). Monta listas de materiais informando o destinatário/setor e consulta o catálogo (visualização do estoque mínimo somente leitura). |
+| **Almoxarifado** (`ALMOXARIFADO`) | `almoxarifado@estoque.local` | `123456` | Realiza a **separação detalhada** das retiradas solicitadas (informando itens separados, quantidades e se faltantes precisam de compra ou estão a caminho), **dá baixa no estoque**, **edita o estoque mínimo (`pontoReposicao`)** nas telas de Produtos e Reposição, cria solicitações de compra (automáticas ou manuais) na tela **Reposição** (`/`) e registra a **chegada física de materiais por OC** (`/recebimento`). |
+| **Setor de Compras** (`COMPRAS`) | `compras@estoque.local` | `123456` | Solicita e revisa pedidos de compra na tela **Reposição** (`/`) e **Pedidos e OC** (`/pedidos`), ajusta quantidades/preços, **aprova e emite a Ordem de Compra (OC)** e **lança a Nota Fiscal (NF)** (`/recebimento`) para liberar a entrada dos materiais no estoque (visualiza estoque mínimo como leitura). |
+| **Supervisor** (`SUPERVISOR`) | `supervisor@estoque.local` | `123456` | Possui **acesso total**: edita estoque mínimo, aprova solicitações e emite OCs, realiza separação/baixa e estorno de retiradas, cadastra fornecedores e possui acesso exclusivo à tela de **Gestão de Usuários e Permissões (CRUD)** (`/usuarios`). |
 
 ---
 
 ## 6. Principais Funcionalidades Implementadas
 
-1. **Autenticação e Controle de Acesso por Nível (RBAC)** com proteção tanto no frontend (`AppLayout` e `Nav`) quanto nos middlewares da API (`autenticar` e `exigirPerfil`).
-2. **Gestão de Usuários (CRUD exclusivo do Supervisor em `/usuarios`)**: criação de contas, definição de perfil, vínculo automático ou manual com funcionários/destinatários, redefinição de senha, ativação/desativação e exclusão segura.
-3. **Solicitação de Retirada e Separação Detalhada (`/saida`)**:
+1. **Autenticação, Login Rápido Inteligente e Controle de Acesso por Nível (RBAC):**
+   - Proteção de rotas no frontend (`AppLayout` e `Nav`) e middlewares da API (`autenticar` e `exigirPerfil`).
+   - Gerenciamento de contas salvas no **Entrar com 1 clique** (`/login`): permite remover perfis individuais ou todo o painel e pergunta automaticamente se o usuário deseja salvar uma conta no login rápido após autenticar com credenciais.
+2. **Gestão de Usuários (CRUD exclusivo do Supervisor em `/usuarios`):** criação de contas, definição de perfil, vínculo com funcionários/destinatários, redefinição de senha e proteção contra desativação do último supervisor ativo.
+3. **Solicitação de Retirada e Separação Detalhada (`/saida`):**
    - O **Solicitante** monta a lista de materiais e informa o **destinatário** e observações, enviando a solicitação como `PENDENTE` (sem abater saldo ainda).
    - O **Almoxarifado / Supervisor** visualiza os detalhes de cada item (código, marca, saldo atual e se já existe OC ativa a caminho), marca quais itens foram **separados**, a **quantidade separada** e classifica eventuais itens **faltantes para envio** entre **`Necessária a compra`** ou **`Já está a caminho (OC emitida)`**, realizando a **baixa no estoque** apenas do que foi efetivamente separado.
-4. **Reposição Inteligente — "Hoje (Reposição)" (`/`)**: cálculo automático no PostgreSQL (`vw_sugestao_reposicao`) cruzando consumo médio de 30 dias, prazo do fornecedor, margem de segurança e saldo a caminho, gerando solicitações de compra com 1 clique.
-5. **Central Unificada de Pedidos e Ordens de Compra (`/pedidos`)**:
-   - Unifica a revisão/aprovação de solicitações (`RASCUNHO`) e o acompanhamento de entregas (`ENVIADO`, `RECEBIDO_PARCIAL`, `RECEBIDO`, `CANCELADO`).
-   - Alerta de valor mínimo exigido pelo fornecedor, revisão inline de quantidades e preços unitários, geração de código `OC-XXXX` e **filtro rápido de pedidos em atraso** (`Em atraso`) além de filtros avançados por período e solicitante.
-6. **Recebimento de Materiais em 2 Etapas — OC + NF (`/recebimento`)**:
-   - **Etapa 1 (Almoxarifado):** busca pela Ordem de Compra (`OC`), marca via checkboxes os itens recebidos e edita as quantidades entregues (suportando **entrega parcial**), gerando um registro `AGUARDANDO_NF`.
-   - **Etapa 2 (Setor de Compras / Supervisor):** confere a entrega registrada pelo almoxarifado e informa o número da **Nota Fiscal (NF)**. **Somente após o lançamento da NF** os materiais entram efetivamente no saldo do estoque (`movimentacoes` / `saldo_atual`).
-7. **Catálogo de Produtos com Semáforo (`/produtos`) e Gestão de Fornecedores (`/fornecedores`)**.
-8. **Tema Claro e Escuro (`Claro` / `Escuro`)** persistido no navegador e sincronizado em todas as telas.
+4. **Reposição Inteligente e Solicitações Dinâmicas para o Estoque (`/`)**:
+   - **Notificação e Badge na barra lateral:** exibe contador âmbar no menu **Reposição** e banner de alerta de baixo estoque no topo da página.
+   - **Aba 1 — Sugestões de estoque baixo:** cálculo automático no PostgreSQL (`vw_sugestao_reposicao`) agrupado por fornecedor, exibindo total estimado vs pedido mínimo do fornecedor (`valorMinimoPedido`) e seletor para incluir outros produtos daquele fornecedor no mesmo card.
+   - **Aba 2 — `+ Solicitar itens para o estoque`:** construtor dinâmico que auto-seleciona o fornecedor preferencial ao escolher um produto, pré-preenche preço tabelado, marca e prazo (`ProdutoFornecedor`), calcula a previsão de entrega, permite importar em 1 clique os itens marcados como `NECESSITA_COMPRA` nas separações de saída e vincula automaticamente o `solicitanteId` do usuário logado.
+5. **Edição Inline de Estoque Mínimo (`pontoReposicao` — exclusiva para Almoxarifado e Supervisor):**
+   - Disponível tanto na coluna **Estoque mínimo** da tela de **Produtos** (`/produtos`) quanto contextualmente em cada item da tela de **Reposição** (`/`), com atalho de 1 clique **"Usar sugerido pelo consumo"** (`pontoSugerido` da view `vw_sugestao_reposicao`).
+6. **Central Unificada de Pedidos e Ordens de Compra (`/pedidos`):**
+   - Unifica a revisão/aprovação de solicitações (`RASCUNHO`) e o acompanhamento de entregas (`ENVIADO`, `RECEBIDO_PARCIAL`, `RECEBIDO`, `CANCELADO`), com filtro rápido de pedidos **`Em atraso`** e filtros avançados.
+7. **Recebimento de Materiais em 2 Etapas — OC + NF (`/recebimento`):**
+   - **Etapa 1 (Almoxarifado):** registra chegada física (total/parcial) por OC, ficando em `AGUARDANDO_NF`.
+   - **Etapa 2 (Setor de Compras / Supervisor):** vincula a **Nota Fiscal (NF)** e credita efetivamente os materiais no saldo do estoque.
+8. **Gestão de Fornecedores (`/fornecedores`) e Tema Claro/Escuro (`Claro` / `Escuro`)**.
 
 ---
 
@@ -191,8 +196,10 @@ Na tela de login (`http://localhost:3001/login`), é possível autenticar digita
 |---|---|---|---|
 | `POST` | `/auth/login` | Público | Autentica usuário e retorna token assinado + dados da sessão |
 | `GET/POST/PATCH/DELETE` | `/usuarios` e `/usuarios/:id` | `SUPERVISOR` | CRUD completo de usuários e permissões |
-| `GET` | `/reposicao/sugestoes` | Autenticado | Lista sugestões de compra agrupadas por fornecedor |
+| `PATCH` | `/produtos/:id` | `ALMOXARIFADO`, `SUPERVISOR` | Atualiza dados do produto, incluindo `pontoReposicao` (estoque mínimo) |
+| `GET` | `/reposicao/sugestoes` | Autenticado | Lista sugestões de compra agrupadas por fornecedor (`?apenasPrecisaRepor=false` traz análise completa) |
 | `POST` | `/reposicao/rascunhos` | `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR` | Cria solicitação de compra (`RASCUNHO`) a partir da sugestão |
+| `POST` | `/pedidos-entrada` | `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR` | Cria solicitação manual dinâmica de reposição para o estoque |
 | `GET` | `/acompanhamento/entradas` | `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR` | Lista pedidos e solicitações com filtros (status, datas, solicitante, `atrasados`) |
 | `PUT` | `/pedidos-entrada/:id/itens` | `ALMOXARIFADO`, `COMPRAS`, `SUPERVISOR` | Revisa itens, quantidades e preços de uma solicitação em rascunho |
 | `POST` | `/pedidos-entrada/:id/enviar` | `COMPRAS`, `SUPERVISOR` | Aprova a solicitação e emite a Ordem de Compra (`OC-XXXX`) |

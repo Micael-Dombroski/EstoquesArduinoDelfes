@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { exigirPerfil } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import { idParamSchema } from '../../shared/schemas';
 import * as controller from './produtos.controller';
@@ -21,9 +22,14 @@ produtosRouter.get('/busca', validate({ query: buscaSchema }), controller.buscar
 produtosRouter.get('/por-codigo/:codigo', validate({ params: codigoParamSchema }), controller.porCodigo);
 
 produtosRouter.get('/:id', validate({ params: idParamSchema }), controller.obter);
-produtosRouter.post('/', validate({ body: criarProdutoSchema }), controller.criar);
-produtosRouter.patch('/:id', validate({ params: idParamSchema, body: atualizarProdutoSchema }), controller.atualizar);
-produtosRouter.delete('/:id', validate({ params: idParamSchema }), controller.desativar);
+produtosRouter.post('/', exigirPerfil('ALMOXARIFADO', 'SUPERVISOR'), validate({ body: criarProdutoSchema }), controller.criar);
+produtosRouter.patch(
+  '/:id',
+  exigirPerfil('ALMOXARIFADO', 'SUPERVISOR'),
+  validate({ params: idParamSchema, body: atualizarProdutoSchema }),
+  controller.atualizar,
+);
+produtosRouter.delete('/:id', exigirPerfil('SUPERVISOR'), validate({ params: idParamSchema }), controller.desativar);
 
 produtosRouter.put(
   '/:id/fornecedores/:fornecedorId',

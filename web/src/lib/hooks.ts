@@ -36,6 +36,15 @@ export const useSugestoes = (habilitado = true) =>
     staleTime: 0,
   });
 
+export const useAnaliseReposicaoCompleta = (habilitado = true) =>
+  useQuery({
+    queryKey: ["reposicao", "completa"],
+    enabled: habilitado,
+    queryFn: async () =>
+      unwrapList<GrupoSugestao>(await api("/reposicao/sugestoes?apenasPrecisaRepor=false")),
+    staleTime: 15_000,
+  });
+
 export const usePedidosEntrada = (status?: StatusPedidoEntrada, habilitado = true) =>
   useQuery({
     queryKey: ["pedidos-entrada", status ?? "TODOS"],

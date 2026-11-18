@@ -210,16 +210,43 @@ export async function listarRecebimentos(q: ListarRecebimentos) {
 
 // ---------------------------------------------------------------- rascunho
 
-export async function criar(input: CriarEntrada) {
+export async function criar(input: CriarEntrada, usuario?: { nome?: string; requisitanteId?: number | null }) {
   await garantirEstruturaRecebimento();
   return prisma.$transaction(async (tx) => {
-    await validarReferencias(tx, input.fornecedorId, input.itens.map((i) => i.produtoId));
+    const produtoIds = input.itens.map((i) => i.produtoId);
+    await validarReferencias(tx, input.fornecedorId, produtoIds);
+
+    const [produtos, vinculos] = await Promise.all([
+      tx.produto.findMany({
+        where: { id: { in: produtoIds } },
+        select: { id: true, marca: true },
+      }),
+      tx.produtoFornecedor.findMany({
+        where: { fornecedorId: input.fornecedorId, produtoId: { in: produtoIds } },
+        select: { produtoId: true, precoUnitario: true, prazoEntregaDias: true },
+      }),
+    ]);
+
+    const itensPreenchidos = input.itens.map((i) => {
+      const prod = produtos.find((p) => p.id === i.produtoId);
+      const vinc = vinculos.find((v) => v.produtoId === i.produtoId);
+      return {
+        produtoId: i.produtoId,
+        quantidade: i.quantidade,
+        marca: i.marca ?? prod?.marca ?? null,
+        precoUnitario: i.precoUnitario ?? vinc?.precoUnitario ?? null,
+      };
+    });
+
+    const solicitanteId = input.solicitanteId ?? usuario?.requisitanteId ?? null;
+
     return tx.pedidoEntrada.create({
       data: {
         fornecedorId: input.fornecedorId,
+        solicitanteId,
         previsaoEntrega: input.previsaoEntrega,
-        observacao: input.observacao,
-        itens: { create: input.itens },
+        observacao: input.observacao || 'Solicitação de reposição para o estoque',
+        itens: { create: itensPreenchidos },
       },
       include: incluirDetalhe,
     });
